@@ -524,30 +524,61 @@ function notify(title,message){
 }
 
 /* BIOS boot */
+/* BIOS boot (stable) */
 function startBoot(){
-  const bios=$("#bios");
-  const bar=$("#bios-bar-inner");
-  let p=0;
-  const interval=setInterval(()=>{
-    p+=5;
-    bar.style.width=p+"%";
-    if(p>=100){
-      clearInterval(interval);
-    }
-  },80);
-  const finish=()=>{
-    if(OS.state.bootDone) return;
-    OS.state.bootDone=true;
-    bios.style.opacity="0";
-    bios.style.transition="opacity .3s";
-    setTimeout(()=>{
+  const bios = $("#bios");
+  const bar  = $("#bios-bar-inner");
+
+  if (!bios || !bar) {
+    // If BIOS elements are missing, just go straight to lockscreen
+    showLockscreen(true);
+    return;
+  }
+
+  let progress = 0;
+  let finished = false;
+
+  function finishBoot() {
+    if (finished) return;
+    finished = true;
+    bios.style.transition = "opacity .3s";
+    bios.style.opacity = "0";
+    setTimeout(() => {
       bios.remove();
       showLockscreen(true);
-    },320);
+    }, 320);
+  }
+
+  // Animate progress bar
+  const interval = setInterval(() => {
+    if (finished) {
+      clearInterval(interval);
+      return;
+    }
+    progress += 5;
+    if (progress > 100) progress = 100;
+    bar.style.width = progress + "%";
+
+    if (progress >= 100) {
+      clearInterval(interval);
+      // small delay so user can see 100%
+      setTimeout(finishBoot, 300);
+    }
+  }, 80);
+
+  // Allow early skip
+  const skip = () => {
+    clearInterval(interval);
+    finishBoot();
   };
-  window.addEventListener("keydown",finish,{once:true});
-  window.addEventListener("click",finish,{once:true});
+  window.addEventListener("keydown", skip, { once: true });
+  window.addEventListener("click",   skip, { once: true });
 }
+
+// Start boot as soon as DOM is ready
+document.addEventListener("DOMContentLoaded", () => {
+  startBoot();
+});
 
 /* Lockscreen */
 let lockInterval=null;
