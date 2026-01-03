@@ -666,19 +666,25 @@ let selStartX=0, selStartY=0, selecting=false;
 function enableSelectionBox(){
   const box=$("#selectBox");
   document.addEventListener("mousedown",(e)=>{
-    if(e.button!==0) return;
-    if(e.target.closest(".icon")||e.target.closest("#taskbar")||e.target.closest("#startMenu")||e.target.closest("#notifPanel")) return;
-    selecting=true;
-    selStartX=e.clientX;
-    selStartY=e.clientY;
-    box.style.left=selStartX+"px";
-    box.style.top=selStartY+"px";
-    box.style.width="0px";
-    box.style.height="0px";
-    box.style.display="block";
-    OS.state.desktopIcons.forEach(i=>i.selected=false);
-    renderDesktopIcons();
-  });
+  if(e.button!==0) return;
+
+  // Do NOT start selection if clicking on a window or inside any window content
+  if (e.target.closest(".window")) return;
+
+  if(e.target.closest(".icon")||e.target.closest("#taskbar")||e.target.closest("#startMenu")||e.target.closest("#notifPanel")) return;
+
+  selecting=true;
+  selStartX=e.clientX;
+  selStartY=e.clientY;
+  box.style.left=selStartX+"px";
+  box.style.top=selStartY+"px";
+  box.style.width="0px";
+  box.style.height="0px";
+  box.style.display="block";
+  OS.state.desktopIcons.forEach(i=>i.selected=false);
+  renderDesktopIcons();
+});
+
   document.addEventListener("mousemove",(e)=>{
     if(!selecting) return;
     const x=Math.min(selStartX,e.clientX);
@@ -822,7 +828,10 @@ function showDesktopContextMenuForIcon(icon,index,x,y){
         togglePinStart(icon.appId);
       }
       if(a==="remove"){
+        // move to recycle bin, then remove from desktop
+        moveToRecycleBin(icon);
         OS.state.desktopIcons.splice(index,1);
+        renderRecycleBinList();
       }
       renderDesktopIcons();
       menu.style.display="none";
@@ -850,6 +859,37 @@ function createWindow(appId,title,contentNode){
   if(contentNode) body.appendChild(contentNode);
   win.appendChild(header);
   win.appendChild(body);
+  const resizeHandle=document.createElement("div");
+resizeHandle.className="window-resize-handle";
+win.appendChild(resizeHandle);
+enableWindowResize(win,resizeHandle);
+  function enableWindowResize(win,handle){
+  let resizing=false,startX=0,startY=0,startW=0,startH=0;
+  handle.addEventListener("mousedown",(e)=>{
+    e.stopPropagation();
+    e.preventDefault();
+    resizing=true;
+    startX=e.clientX;
+    startY=e.clientY;
+    const rect=win.getBoundingClientRect();
+    startW=rect.width;
+    startH=rect.height;
+    document.body.style.userSelect="none";
+  });
+  document.addEventListener("mousemove",(e)=>{
+    if(!resizing) return;
+    const dx=e.clientX-startX;
+    const dy=e.clientY-startY;
+    win.style.width=Math.max(320,startW+dx)+"px";
+    win.style.height=Math.max(200,startH+dy)+"px";
+  });
+  document.addEventListener("mouseup",()=>{
+    if(!resizing) return;
+    resizing=false;
+    document.body.style.userSelect="";
+  });
+}
+
   document.body.appendChild(win);
 
   win.style.left=(140+OS.state.windows.length*28)+"px";
@@ -928,6 +968,16 @@ function enableWindowDragging(win,header){
     win.classList.remove("dragging");
     document.body.style.userSelect="";
   });
+  .window-resize-handle{
+  position:absolute;
+  right:4px;
+  bottom:4px;
+  width:12px;
+  height:12px;
+  cursor:nwse-resize;
+  border-radius:3px;
+  background:linear-gradient(135deg,rgba(148,163,184,0.4),transparent);
+  opacity:0.7;
 }
 
 /* Taskbar + clock */
@@ -1171,12 +1221,14 @@ desktopEl.addEventListener("drop",(e)=>{
   const x=e.clientX-rect.left;
   const y=e.clientY-rect.top;
   OS.state.desktopIcons.push({
-    id:"shortcut-"+Date.now(),
-    name:OS.state.apps[currentDraggedAppId].title,
-    appId:currentDraggedAppId,
-    x:x-30,y:y-30,
-    selected:false,
-    type:"shortcut"
+  id:"shortcut-"+Date.now(),
+  name:OS.state.apps[currentDraggedAppId].title,
+  appId:currentDraggedAppId,   // this must be "settings", "browser", etc.
+  x:x-30,y:y-30,
+  selected:false,
+  type:"shortcut"
+});
+
   });
   currentDraggedAppId=null;
   renderDesktopIcons();
@@ -1747,25 +1799,55 @@ registerApp("store",{
     root.innerHTML=`
       <h2>Store</h2>
       <div class="store-grid">
-        <div class="store-card">
-          <div class="store-card-title">Theme Pack</div>
-          <div class="store-card-desc">Install additional wallpaper + icon presets (concept).</div>
+        <div class="store-card" data-app="paint">
+          <div class="store-card-title">Liquid Paint</div>
+          <div class="store-card-desc">Simple drawing app for Liquid Plastic.</div>
+          <button class="theme-btn" data-install="paint">Install</button>
         </div>
-        <div class="store-card">
-          <div class="store-card-title">Developer Tools</div>
-          <div class="store-card-desc">Future: log viewer, FPS overlay, debug options.</div>
+        <div class="store-card" data-app="music">
+          <div class="store-card-title">LP Music</div>
+          <div class="store-card-desc">Mock music player (concept).</div>
+          <button class="theme-btn" data-install="music">Install</button>
         </div>
       </div>
     `;
-    root.querySelectorAll(".store-card").forEach(card=>{
-      card.onclick=()=>{
-        notify("Store","Store items are placeholders in this build.");
-        showToast("Store items are placeholders in this build.");
-      };
+    root.querySelectorAll("[data-install]").forEach(btn=>{
+      btn.addEventListener("click",()=>{
+        const id=btn.dataset.install;
+        installStoreApp(id);
+      });
     });
     return root;
   }
 });
+
+function installStoreApp(id){
+  if(id==="paint" && !OS.state.apps["paint"]){
+    registerApp("paint",{
+      title:"Liquid Paint",
+      createContent(){
+        const div=document.createElement("div");
+        div.innerHTML=`<div style="font-size:12px;">Liquid Paint is a concept app. Imagine a canvas here.</div>`;
+        return div;
+      }
+    });
+  }
+  if(id==="music" && !OS.state.apps["music"]){
+    registerApp("music",{
+      title:"LP Music",
+      createContent(){
+        const div=document.createElement("div");
+        div.innerHTML=`<div style="font-size:12px;">LP Music is a concept app. Imagine a playlist here.</div>`;
+        return div;
+      }
+    });
+  }
+
+  if(!pinnedApps.includes(id)) pinnedApps.push(id);
+  notify("Store",`Installed ${id} and added to Start.`);
+  showToast(`Installed ${id}`);
+  if(OS.state.startMenuOpen) renderStartMenuContent();
+}
 
 /* Terminal */
 registerApp("terminal",{
