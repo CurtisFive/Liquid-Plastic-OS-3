@@ -1343,19 +1343,28 @@ function openApp(id){
 registerApp("browser",{
   title:"Liquid Plastic Browser",
   createContent(){
-    const root=document.createElement("div");
-    root.className="browser-app";
-    root.innerHTML=`
-      <div class="browser-bar">
-        <div class="browser-tab"><span>LP X</span></div>
-        <input class="browser-url" placeholder="lp://home" />
-        <button class="browser-go">Go</button>
-      </div>
-      <div class="browser-area" id="lpBrowserArea"></div>
-    `;
-    setupLPBrowser(root);
-    return root;
-  }
+  const root = document.createElement("div");
+  root.className = "settings-app";
+
+  root.innerHTML = `
+    <div class="settings-sidebar">
+      <div class="settings-item" data-panel="appearance">Appearance</div>
+      <div class="settings-item" data-panel="system">System</div>
+      <div class="settings-item" data-panel="account">Account</div>
+      <div class="settings-item" data-panel="glass">Glass</div>
+    </div>
+
+    <div class="settings-main">
+      <div id="settings-panel-appearance" class="settings-panel"></div>
+      <div id="settings-panel-system" class="settings-panel"></div>
+      <div id="settings-panel-account" class="settings-panel"></div>
+      <div id="settings-panel-glass" class="settings-panel"></div>
+    </div>
+  `;
+
+  setupSettings(root);
+  return root;
+}
 });
 function renderLPPage(area,url){
   const page=url.toLowerCase();
