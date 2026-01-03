@@ -17,6 +17,7 @@
   --icon-glass-opacity:0.72;
 }
 
+/* Global */
 *{box-sizing:border-box;margin:0;padding:0}
 body{
   margin:0;
@@ -508,6 +509,7 @@ const OS = {
   }
 };
 
+/* Toast + notifications */
 function showToast(msg){
   const t=$("#toast");
   t.textContent=msg;
@@ -523,14 +525,12 @@ function notify(title,message){
   renderTaskbar();
 }
 
-/* BIOS boot */
 /* BIOS boot (stable) */
 function startBoot(){
   const bios = $("#bios");
   const bar  = $("#bios-bar-inner");
 
   if (!bios || !bar) {
-    // If BIOS elements are missing, just go straight to lockscreen
     showLockscreen(true);
     return;
   }
@@ -549,7 +549,6 @@ function startBoot(){
     }, 320);
   }
 
-  // Animate progress bar
   const interval = setInterval(() => {
     if (finished) {
       clearInterval(interval);
@@ -561,12 +560,10 @@ function startBoot(){
 
     if (progress >= 100) {
       clearInterval(interval);
-      // small delay so user can see 100%
       setTimeout(finishBoot, 300);
     }
   }, 80);
 
-  // Allow early skip
   const skip = () => {
     clearInterval(interval);
     finishBoot();
@@ -574,11 +571,6 @@ function startBoot(){
   window.addEventListener("keydown", skip, { once: true });
   window.addEventListener("click",   skip, { once: true });
 }
-
-// Start boot as soon as DOM is ready
-document.addEventListener("DOMContentLoaded", () => {
-  startBoot();
-});
 
 /* Lockscreen */
 let lockInterval=null;
@@ -621,7 +613,7 @@ function showLockscreen(first=false){
 
 /* Desktop icons */
 function seedDesktopIcons(){
-  OS.state.desktopIcons=[]; // clean on first boot
+  OS.state.desktopIcons=[]; // clean desktop first boot
 }
 function renderDesktopIcons(){
   const layer=$("#desktopIcons");
@@ -829,7 +821,7 @@ function overlapRect(a,b){
   return a.left<b.right && a.right>b.left && a.top<b.bottom && a.bottom>b.top;
 }
 
-/* Desktop context menu (with delete→bin) */
+/* Desktop context menu (with delete → Recycle Bin) */
 function showDesktopContextMenuForIcon(icon,index,x,y){
   const menu=$("#ctxMenu");
   const inner=menu.querySelector(".inner");
@@ -1268,7 +1260,7 @@ document.addEventListener("mousedown",(e)=>{
 /* Taskbar / Start / app right-click */
 document.addEventListener("contextmenu",(e)=>{
   const iconEl=e.target.closest(".icon");
-  if(iconEl) return; // handled separately
+  if(iconEl) return; // handled by icon context
 
   const tbBtn=e.target.closest(".tb-app");
   const tb=e.target.closest("#taskbar");
@@ -1343,28 +1335,19 @@ function openApp(id){
 registerApp("browser",{
   title:"Liquid Plastic Browser",
   createContent(){
-  const root = document.createElement("div");
-  root.className = "settings-app";
-
-  root.innerHTML = `
-    <div class="settings-sidebar">
-      <div class="settings-item" data-panel="appearance">Appearance</div>
-      <div class="settings-item" data-panel="system">System</div>
-      <div class="settings-item" data-panel="account">Account</div>
-      <div class="settings-item" data-panel="glass">Glass</div>
-    </div>
-
-    <div class="settings-main">
-      <div id="settings-panel-appearance" class="settings-panel"></div>
-      <div id="settings-panel-system" class="settings-panel"></div>
-      <div id="settings-panel-account" class="settings-panel"></div>
-      <div id="settings-panel-glass" class="settings-panel"></div>
-    </div>
-  `;
-
-  setupSettings(root);
-  return root;
-}
+    const root=document.createElement("div");
+    root.className="browser-app";
+    root.innerHTML=`
+      <div class="browser-bar">
+        <div class="browser-tab"><span>LP X</span></div>
+        <input class="browser-url" placeholder="lp://home" />
+        <button class="browser-go">Go</button>
+      </div>
+      <div class="browser-area" id="lpBrowserArea"></div>
+    `;
+    setupLPBrowser(root);
+    return root;
+  }
 });
 function renderLPPage(area,url){
   const page=url.toLowerCase();
@@ -1943,8 +1926,8 @@ function initDesktop(){
   renderTaskbar();
 }
 
-/* Start boot */
-window.addEventListener("load",startBoot);
+/* Start boot when DOM ready */
+document.addEventListener("DOMContentLoaded", startBoot);
 </script>
 </body>
 </html>
