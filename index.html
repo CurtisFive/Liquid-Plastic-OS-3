@@ -1,0 +1,1507 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Liquid Plastic OS – Updated Build</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<style>
+:root{
+  --accent:#4aa8ff;
+  --bg-gradient:radial-gradient(circle at top,#182235 0%,#050711 55%,#020308 100%);
+  --text-main:#f9fafb;
+  --text-sub:#9ca3af;
+  --radius:18px;
+
+  /* Window glass (not affected by transparency slider) */
+  --win-bg:rgba(15,23,42,0.88);
+  --win-border:rgba(148,163,184,0.55);
+  --win-blur:22px;
+
+  /* UI glass (taskbar, menus, icons, folders, notif) */
+  --ui-glass-bg:rgba(15,23,42,0.80);
+  --ui-glass-border:rgba(148,163,184,0.50);
+  --ui-glass-blur:20px;
+  --icon-glass-bg:rgba(15,23,42,0.72);
+}
+
+*{box-sizing:border-box}
+body{
+  margin:0;
+  font-family:system-ui,-apple-system,BlinkMacSystemFont,"SF Pro Text",sans-serif;
+  background:var(--bg-gradient);
+  color:var(--text-main);
+  overflow:hidden;
+  user-select:none;
+}
+
+/* BIOS */
+#bios{
+  position:fixed;inset:0;background:#020617;color:#e5e7eb;font-family:monospace;
+  font-size:12px;padding:20px;z-index:1500;display:flex;flex-direction:column;
+}
+#bios .hint{margin-top:14px;color:#9ca3af}
+
+/* Desktop */
+.desktop{position:fixed;inset:0;background:var(--bg-gradient);overflow:hidden}
+.glow{position:absolute;border-radius:999px;filter:blur(60px);opacity:.6;mix-blend-mode:screen}
+.g1{width:40vw;height:40vw;background:radial-gradient(circle,#38bdf8,transparent 60%);top:-10%;left:-10%}
+.g2{width:32vw;height:32vw;background:radial-gradient(circle,#fb7185,transparent 60%);bottom:-12%;right:-5%}
+.g3{width:26vw;height:26vw;background:radial-gradient(circle,#5eead4,transparent 60%);bottom:10%;left:15%}
+
+/* Glass helpers */
+.glass-win{
+  position:absolute;
+  background:var(--win-bg);
+  border-radius:var(--radius);
+  border:1px solid var(--win-border);
+  backdrop-filter:blur(var(--win-blur)) saturate(180%);
+  -webkit-backdrop-filter:blur(var(--win-blur)) saturate(180%);
+  box-shadow:0 22px 60px rgba(0,0,0,.80);
+}
+.glass-win::before{
+  content:"";position:absolute;inset:0;border-radius:inherit;
+  background:linear-gradient(130deg,rgba(255,255,255,.16),rgba(255,255,255,.03),rgba(255,255,255,.16));
+  opacity:.16;pointer-events:none;
+}
+.glass-ui{
+  background:var(--ui-glass-bg);
+  border-radius:16px;
+  border:1px solid var(--ui-glass-border);
+  backdrop-filter:blur(var(--ui-glass-blur)) saturate(180%);
+  -webkit-backdrop-filter:blur(var(--ui-glass-blur)) saturate(180%);
+  box-shadow:0 18px 50px rgba(0,0,0,.80);
+}
+
+/* Lockscreen */
+#lockscreen{
+  position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
+  z-index:1000;backdrop-filter:blur(26px);-webkit-backdrop-filter:blur(26px);
+}
+.lock-panel{width:420px;padding:32px;text-align:center}
+.lock-panel-inner{
+  border-radius:26px;border:1px solid rgba(148,163,184,.6);
+  background:rgba(15,23,42,.90);backdrop-filter:blur(24px);padding:24px;
+}
+.lock-time{font-size:64px;font-weight:600}
+.lock-date{margin-top:4px;font-size:16px;color:var(--text-sub)}
+.account-pill{
+  display:flex;align-items:center;gap:10px;margin-top:24px;padding:10px 16px;
+  border-radius:999px;background:rgba(15,23,42,.88);border:1px solid rgba(255,255,255,.25);cursor:pointer;
+}
+.avatar{
+  width:34px;height:34px;border-radius:999px;background:conic-gradient(from 140deg,#38bdf8,#a855f7,#f97316,#22c55e);
+  display:flex;align-items:center;justify-content:center;color:#020617;font-weight:700;font-size:16px;overflow:hidden;
+}
+.avatar img{width:100%;height:100%;object-fit:cover}
+#lockPassRow{margin-top:16px;display:none;flex-direction:column;gap:6px;align-items:center}
+#lockPassRow input{
+  width:70%;padding:6px 10px;border-radius:999px;border:1px solid rgba(148,163,184,.6);
+  background:rgba(15,23,42,.85);color:var(--text-main);outline:none;
+}
+#lockError{font-size:11px;color:#f97373;display:none}
+
+/* Desktop icons */
+#desktopIcons{position:fixed;inset:0;padding:8px;pointer-events:none}
+.icon{
+  position:absolute;width:76px;text-align:center;font-size:11px;pointer-events:auto;cursor:pointer;
+}
+.icon-body{
+  width:46px;height:46px;margin:0 auto 4px;border-radius:18px;
+  background:conic-gradient(from 210deg,#38bdf8,#22c55e,#f97316,#ec4899);
+  position:relative;overflow:hidden;box-shadow:0 12px 26px rgba(0,0,0,.7);
+}
+.icon-body::after{
+  content:"";position:absolute;inset:2px;border-radius:inherit;
+  background:var(--icon-glass-bg);
+}
+.icon-label{color:var(--text-main)}
+.icon.selected .icon-body{outline:2px solid var(--accent)}
+#selectBox{
+  position:fixed;border:1px solid rgba(148,163,184,.8);background:rgba(59,130,246,0.18);
+  display:none;pointer-events:none;z-index:50;
+}
+
+/* Folder popup */
+#folderPopup{
+  position:fixed;width:240px;height:230px;padding:8px;display:none;z-index:900;font-size:12px;
+}
+#folderPopup .inner{height:100%;padding:6px;border-radius:14px;}
+.folder-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:6px}
+.folder-app{
+  border-radius:10px;padding:6px;background:rgba(15,23,42,.9);border:1px solid rgba(148,163,184,.5);
+  cursor:pointer;text-align:center;
+}
+.folder-app:hover{background:var(--accent);color:#020617}
+
+/* Context menu */
+#ctxMenu{
+  position:fixed;min-width:160px;padding:4px 0;display:none;z-index:1200;font-size:12px;
+}
+#ctxMenu .inner{border-radius:10px;padding:2px;}
+.ctx-item{padding:6px 10px;color:var(--text-main);cursor:pointer}
+.ctx-item:hover{background:var(--accent);color:#020617}
+
+/* Taskbar (bar style) */
+#taskbar{
+  position:fixed;left:0;right:0;bottom:0;height:46px;padding:4px 10px;
+  display:flex;align-items:center;gap:8px;z-index:800;
+  background:linear-gradient(to top,var(--ui-glass-bg),transparent);
+  border-top:1px solid var(--ui-glass-border);
+  backdrop-filter:blur(var(--ui-glass-blur)) saturate(180%);
+  -webkit-backdrop-filter:blur(var(--ui-glass-blur)) saturate(180%);
+  transition:transform .18s ease-out;
+}
+.task-left,.task-mid,.task-right{display:flex;align-items:center}
+.task-mid{flex:1;justify-content:center}
+.task-btn{
+  border-radius:999px;border:1px solid rgba(148,163,184,.5);
+  padding:6px 12px;background:rgba(15,23,42,.94);color:var(--text-main);
+  font-size:12px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;
+}
+.task-btn:hover{background:var(--accent);color:#020617;border-color:var(--accent)}
+.task-clock{text-align:right;font-size:12px;margin-right:8px}
+.task-clock .date{font-size:11px;color:var(--text-sub)}
+.task-ind{display:flex;align-items:center;gap:4px;font-size:14px;color:var(--text-sub)}
+
+/* Start menu */
+#startMenu{
+  position:fixed;left:10px;bottom:58px;width:360px;max-height:460px;display:none;z-index:850;
+}
+#startMenu .inner{padding:10px;border-radius:18px;}
+.start-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:6px}
+.start-tile{
+  border-radius:16px;padding:6px 4px;text-align:center;font-size:11px;
+  background:rgba(15,23,42,.9);border:1px solid rgba(148,163,184,.5);
+  color:var(--text-main);cursor:pointer;display:none;flex-direction:column;gap:4px;align-items:center;
+}
+.start-tile.show{display:flex}
+.start-footer{display:flex;justify-content:flex-end;gap:6px;margin-top:6px;font-size:11px}
+
+/* Notifications */
+#notifPanel{
+  position:fixed;right:10px;bottom:58px;width:260px;max-height:320px;display:none;z-index:850;font-size:12px;
+}
+#notifPanel .inner{padding:8px;border-radius:14px;}
+.notif-list{max-height:260px;overflow:auto}
+.notif{
+  border-radius:10px;padding:6px 8px;margin-bottom:4px;
+  background:rgba(15,23,42,.9);border:1px solid rgba(148,163,184,.6);position:relative;
+}
+.notif-title{font-weight:600}
+.notif-time{font-size:11px;color:var(--text-sub)}
+.notif-close{position:absolute;right:6px;top:4px;font-size:11px;cursor:pointer;color:var(--text-sub)}
+
+/* Windows */
+.window{
+  position:absolute;min-width:380px;min-height:230px;display:none;flex-direction:column;
+  border-radius:var(--radius);overflow:hidden;z-index:500;
+  transition:opacity .18s ease-out, transform .18s ease-out;
+}
+.window.hidden{opacity:0;transform:scale(0.96);}
+.window.visible{opacity:1;transform:scale(1);}
+.window.dragging{transition:none !important;}
+
+.win-header{
+  display:flex;align-items:center;padding:6px 10px;gap:8px;
+  border-bottom:1px solid rgba(148,163,184,.3);cursor:move;
+}
+.win-title{font-size:12px;color:var(--text-sub)}
+.win-controls{margin-left:auto;display:flex;gap:4px}
+.win-btn{
+  width:24px;height:18px;border-radius:4px;border:1px solid rgba(148,163,184,.5);
+  background:rgba(15,23,42,.9);color:var(--text-main);font-size:12px;cursor:pointer;
+}
+.win-btn:hover{background:var(--accent);color:#020617;border-color:var(--accent)}
+.win-btn[data-close]:hover{background:#E81123;border-color:#E81123;color:#fff;}
+.win-body{flex:1;padding:8px 10px;font-size:13px;overflow:auto}
+
+/* Max / halves / quadrants */
+.window.maximized{
+  position:fixed !important;left:0 !important;right:0 !important;top:0 !important;bottom:0 !important;
+  width:100vw !important;height:100vh !important;border-radius:0 !important;
+}
+.window.split-left{
+  position:fixed !important;left:0 !important;top:0 !important;bottom:0 !important;
+  width:50vw !important;border-radius:0 !important;
+}
+.window.split-right{
+  position:fixed !important;right:0 !important;top:0 !important;bottom:0 !important;
+  width:50vw !important;border-radius:0 !important;
+}
+.window.snap-tl{
+  position:fixed !important;left:0 !important;top:0 !important;
+  width:50vw !important;height:50vh !important;border-radius:0 !important;
+}
+.window.snap-tr{
+  position:fixed !important;right:0 !important;top:0 !important;
+  width:50vw !important;height:50vh !important;border-radius:0 !important;
+}
+.window.snap-bl{
+  position:fixed !important;left:0 !important;bottom:0 !important;
+  width:50vw !important;height:50vh !important;border-radius:0 !important;
+}
+.window.snap-br{
+  position:fixed !important;right:0 !important;bottom:0 !important;
+  width:50vw !important;height:50vh !important;border-radius:0 !important;
+}
+
+.resize-h{position:absolute;z-index:10}
+.resize-right{right:0;top:0;width:6px;height:100%;cursor:ew-resize}
+.resize-bottom{left:0;bottom:0;width:100%;height:6px;cursor:ns-resize}
+.resize-corner{right:0;bottom:0;width:10px;height:10px;cursor:nwse-resize}
+
+/* Browser */
+.browser-tabs{display:flex;gap:4px;margin-bottom:6px;font-size:11px}
+.btab{
+  padding:3px 7px;border-radius:999px;border:1px solid rgba(148,163,184,.6);
+  background:rgba(15,23,42,.9);cursor:pointer;display:flex;align-items:center;gap:4px;
+  max-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;
+}
+.btab.active{background:var(--accent);color:#020617;border-color:var(--accent)}
+.btab-close{font-size:11px;cursor:pointer}
+
+/* Small controls */
+.pill{
+  padding:4px 10px;border-radius:999px;border:1px solid rgba(148,163,184,.6);
+  background:rgba(15,23,42,.92);color:var(--text-main);font-size:12px;cursor:pointer;
+}
+.pill:hover{background:var(--accent);color:#020617;border-color:var(--accent)}
+.chip{
+  padding:4px 8px;border-radius:999px;border:1px solid rgba(148,163,184,.6);
+  background:rgba(15,23,42,.9);color:var(--text-main);font-size:11px;cursor:pointer;
+}
+.chip:hover{background:var(--accent);color:#020617;border-color:var(--accent)}
+.toggle{
+  width:34px;height:18px;border-radius:999px;border:1px solid rgba(148,163,184,.6);
+  background:rgba(15,23,42,.9);cursor:pointer;position:relative;
+}
+.toggle-thumb{
+  position:absolute;top:1px;left:1px;width:14px;height:14px;border-radius:999px;
+  background:rgba(156,163,175,1);transition:transform .16s,background .16s;
+}
+.toggle.on{background:var(--accent);border-color:var(--accent)}
+.toggle.on .toggle-thumb{transform:translateX(14px);background:#020617}
+
+/* Window layer */
+#winLayer{position:fixed;inset:0;pointer-events:none}
+.window{pointer-events:auto}
+
+/* Terminal */
+.term-out{
+  height:200px;overflow:auto;border-radius:6px;border:1px solid rgba(148,163,184,.6);
+  padding:4px;background:rgba(15,23,42,.9);font-family:monospace;font-size:11px;
+}
+.term-line{white-space:pre-wrap}
+
+/* Responsive */
+@media(max-width:768px){
+  .window{min-width:90vw;min-height:60vh}
+}
+</style>
+</head>
+<body>
+
+<!-- BIOS -->
+<div id="bios">
+  <div>Liquid Plastic UEFI BIOS v1.0</div>
+  <div>Copyright (c) 2026 Curtis Labs</div>
+  <div>CPU: Virtual Glass Core</div>
+  <div>Memory: 8192 MB</div>
+  <div>Boot device: LP-SSD0</div>
+  <div class="hint">Booting Liquid Plastic OS...</div>
+</div>
+
+<!-- Desktop -->
+<div class="desktop">
+  <div class="glow g1"></div><div class="glow g2"></div><div class="glow g3"></div>
+</div>
+
+<div id="desktopIcons"></div>
+<div id="selectBox"></div>
+
+<!-- Folder popup -->
+<div id="folderPopup">
+  <div class="glass-ui inner">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <span id="folderTitle">Folder</span>
+      <button class="pill" id="folderClose">Close</button>
+    </div>
+    <div class="folder-grid" id="folderApps"></div>
+  </div>
+</div>
+
+<!-- Context menu -->
+<div id="ctxMenu">
+  <div class="glass-ui inner">
+    <div class="ctx-item" data-act="open">Open</div>
+    <div class="ctx-item" data-act="rename">Rename</div>
+    <div class="ctx-item" data-act="align">Align icons</div>
+    <div class="ctx-item" data-act="pin">Pin to Start</div>
+    <div class="ctx-item" data-act="del" style="border-top:1px solid rgba(255,255,255,.12);margin-top:4px">Delete</div>
+  </div>
+</div>
+
+<!-- Lockscreen -->
+<div id="lockscreen">
+  <div class="lock-panel">
+    <div class="lock-panel-inner">
+      <div class="lock-time" id="lockTime">00:00</div>
+      <div class="lock-date" id="lockDate">Monday, January 1</div>
+      <div class="account-pill" id="lockAccount">
+        <div class="avatar" id="lockAvatar">C</div>
+        <div>
+          <div id="lockName">Curtis</div>
+          <div style="font-size:11px;color:var(--text-sub)">Liquid Plastic</div>
+        </div>
+      </div>
+      <div id="lockPassRow">
+        <input id="lockPassInput" type="password" placeholder="Enter password">
+        <div id="lockError">Incorrect password</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Start menu -->
+<div id="startMenu">
+  <div class="glass-ui inner">
+    <div style="display:flex;justify-content:space-between;align-items:center">
+      <div style="display:flex;align-items:center;gap:8px">
+        <div class="avatar" id="startAvatar" style="width:24px;height:24px;font-size:13px">C</div>
+        <div>
+          <div id="startUser">Curtis</div>
+          <div style="font-size:11px;color:var(--text-sub)">Liquid Plastic</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:6px;align-items:center">
+        <button class="pill" id="btnAccountSettings">Account</button>
+        <button class="pill" id="btnTaskMgr">Task Manager</button>
+      </div>
+    </div>
+
+    <div style="margin-top:8px;font-size:11px;color:var(--text-sub);text-transform:uppercase">Pinned</div>
+    <div class="start-grid" id="startGrid"></div>
+
+    <div class="start-footer">
+      <div class="chip" id="startLock">Lock</div>
+      <div class="chip" id="startSignout">Sign out</div>
+      <div class="chip" id="startShutdown">Shut down</div>
+    </div>
+  </div>
+</div>
+
+<!-- Taskbar -->
+<div id="taskbar">
+  <div class="task-left">
+    <button class="task-btn" id="startBtn">Start</button>
+  </div>
+  <div class="task-mid" id="taskApps"></div>
+  <div class="task-right">
+    <div class="task-clock">
+      <div id="tbTime">00:00</div>
+      <div class="date" id="tbDate">1/1/2026</div>
+    </div>
+    <div class="task-ind"><span>📶</span></div>
+    <button class="task-btn" id="notifBtn">Notifications</button>
+  </div>
+</div>
+
+<!-- Notifications -->
+<div id="notifPanel">
+  <div class="glass-ui inner">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px">
+      <span>Notifications</span>
+      <button class="pill" id="notifClear">Clear</button>
+    </div>
+    <div class="notif-list" id="notifList"></div>
+  </div>
+</div>
+
+<!-- Windows -->
+<div id="winLayer"></div>
+<template id="winTpl">
+  <div class="glass-win window hidden">
+    <div class="win-header" data-drag>
+      <div style="width:16px;height:16px;border-radius:7px;background:conic-gradient(from 180deg,#0ea5e9,#22c55e,#f97316)"></div>
+      <div class="win-title"></div>
+      <div class="win-controls">
+        <button class="win-btn" data-min>−</button>
+        <button class="win-btn" data-max>□</button>
+        <button class="win-btn" data-close>✕</button>
+      </div>
+    </div>
+    <div class="win-body"></div>
+    <div class="resize-h resize-right"></div>
+    <div class="resize-h resize-bottom"></div>
+    <div class="resize-h resize-corner"></div>
+  </div>
+</template>
+
+<script>
+(()=>{
+const $=s=>document.querySelector(s);
+const $$=s=>Array.from(document.querySelectorAll(s));
+
+/* Clock */
+let use12h=true;
+function fmtTime(d){
+  let h=d.getHours(),m=d.getMinutes();
+  if(!use12h)return `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+  const ampm=h>=12?'PM':'AM';h=h%12||12;
+  return `${h}:${String(m).padStart(2,'0')} ${ampm}`;
+}
+function tick(){
+  const d=new Date();
+  $('#lockTime').textContent=fmtTime(d);
+  $('#tbTime').textContent=fmtTime(d);
+  $('#tbDate').textContent=d.toLocaleDateString();
+  $('#lockDate').textContent=d.toLocaleDateString(undefined,{weekday:'long',month:'long',day:'numeric'});
+}
+tick();setInterval(tick,1000);
+
+/* BIOS */
+setTimeout(()=>{
+  const bios=$('#bios');
+  bios.querySelector('.hint').textContent='Press any key or click to continue...';
+  const end=()=>bios.style.display='none';
+  bios.addEventListener('click',end,{once:true});
+  bios.addEventListener('keydown',()=>end(),{once:true});
+  bios.tabIndex=0;bios.focus();
+},1200);
+
+/* Account */
+let accName='Curtis',accInit='C',accPass='',requirePass=false,accPic=null;
+function applyAvatar(el){
+  if(!el)return;
+  el.innerHTML='';
+  if(accPic){
+    const img=document.createElement('img');
+    img.src=accPic;
+    el.appendChild(img);
+  }else{
+    el.textContent=(accInit||accName[0]||'U').toUpperCase();
+  }
+}
+function refreshAccount(){
+  $('#lockName').textContent=accName;
+  $('#startUser').textContent=accName;
+  applyAvatar($('#lockAvatar'));
+  applyAvatar($('#startAvatar'));
+}
+refreshAccount();
+function updateLockUI(){
+  $('#lockPassRow').style.display=requirePass?'flex':'none';
+  if(!requirePass){$('#lockPassInput').value='';$('#lockError').style.display='none';}
+}
+updateLockUI();
+$('#lockAccount').onclick=()=>{
+  if(!requirePass||!accPass){$('#lockscreen').style.display='none';return;}
+  $('#lockPassRow').style.display='flex';
+  $('#lockPassInput').focus();
+};
+function tryUnlock(){
+  if(!requirePass||!accPass){$('#lockscreen').style.display='none';return;}
+  if($('#lockPassInput').value===accPass){
+    $('#lockscreen').style.display='none';$('#lockError').style.display='none';$('#lockPassInput').value='';
+  }else $('#lockError').style.display='block';
+}
+$('#lockPassInput').addEventListener('keydown',e=>{if(e.key==='Enter')tryUnlock();});
+
+/* Notifications */
+function notify(title,text){
+  const list=$('#notifList');
+  const n=document.createElement('div');n.className='notif';
+  n.innerHTML=`<div class="notif-title">${title}</div>
+    <div style="margin:3px 0;font-size:12px">${text}</div>
+    <div class="notif-time">${new Date().toLocaleTimeString()}</div>
+    <div class="notif-close">✕</div>`;
+  n.querySelector('.notif-close').onclick=(ev)=>{
+    ev.stopPropagation();
+    n.remove(); // panel stays open
+  };
+  list.prepend(n);
+}
+$('#notifBtn').onclick=e=>{
+  e.stopPropagation();
+  const p=$('#notifPanel');
+  p.style.display=p.style.display?'':'block';
+};
+$('#notifClear').onclick=()=>$('#notifList').innerHTML='';
+document.addEventListener('click',e=>{
+  if(!$('#notifPanel').contains(e.target) && e.target!==$('#notifBtn'))$('#notifPanel').style.display='none';
+});
+
+/* Apps */
+const APPS={
+  browser:{name:'Browser',installed:true,pinned:true},
+  settings:{name:'Settings',installed:true,pinned:true},
+  notes:{name:'Notes',installed:true,pinned:true},
+  store:{name:'Store',installed:true,pinned:true},
+  terminal:{name:'Terminal',installed:true,pinned:true},
+  taskmgr:{name:'Task Manager',installed:true,pinned:false}
+};
+
+const APP_HTML={
+  browser:`
+    <div class="browser-tabs" id="bTabs"></div>
+    <div style="display:flex;gap:4px;align-items:center;margin-bottom:6px">
+      <button class="pill" id="bBack">←</button>
+      <button class="pill" id="bFwd">→</button>
+      <button class="pill" id="bHome">🏠</button>
+      <button class="pill" id="bNewTab">＋</button>
+      <div style="flex:1;border-radius:999px;padding:4px 8px;border:1px solid rgba(148,163,184,.5);background:rgba(15,23,42,.9)">
+        <input id="bUrl" style="width:100%;border:none;background:transparent;color:inherit;outline:none;font-size:12px" value="lp://home">
+      </div>
+      <button class="pill" id="bGo">Go</button>
+      <button class="pill" id="bStar">☆</button>
+    </div>
+    <div style="border-radius:10px;border:1px solid rgba(148,163,184,.5);background:rgba(15,23,42,.96);min-height:200px;padding:8px">
+      <div id="bInner" style="max-height:250px;overflow:auto;font-size:12px"></div>
+    </div>`,
+  settings:`
+    <div style="display:grid;grid-template-columns:150px 1fr;gap:8px;height:100%">
+      <div style="border-radius:10px;padding:8px;background:rgba(15,23,42,.95);border:1px solid rgba(148,163,184,.5)">
+        <div class="pill" data-tab="appearance">Appearance</div>
+        <div class="pill" data-tab="system" style="margin-top:4px">System</div>
+        <div class="pill" data-tab="account" style="margin-top:4px">Account</div>
+        <div class="pill" data-tab="glass" style="margin-top:4px">Glass</div>
+      </div>
+      <div id="setBody" style="border-radius:10px;padding:8px;background:rgba(15,23,42,.97);border:1px solid rgba(148,163,184,.5);overflow:auto;font-size:12px"></div>
+    </div>`,
+  notes:`
+    <div style="display:grid;grid-template-columns:180px 1fr;gap:8px;height:100%">
+      <div style="border-radius:10px;padding:8px;background:rgba(15,23,42,.97);border:1px solid rgba(148,163,184,.5);display:flex;flex-direction:column">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+          <span>All notes</span><button class="pill" id="noteNew">New</button>
+        </div>
+        <div id="noteList" style="flex:1;overflow:auto;font-size:12px"></div>
+      </div>
+      <div style="border-radius:10px;padding:8px;background:rgba(15,23,42,.97);border:1px solid rgba(148,163,184,.5);display:flex;flex-direction:column">
+        <input id="noteTitle" placeholder="Title" style="border:none;background:transparent;color:inherit;outline:none;font-size:14px;margin-bottom:6px">
+        <textarea id="noteBody" placeholder="Start typing..." style="flex:1;border-radius:10px;padding:6px;border:1px solid rgba(148,163,184,.6);background:rgba(15,23,42,.9);color:inherit;outline:none"></textarea>
+      </div>
+    </div>`,
+  store:`<div id="storeGrid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px;font-size:12px"></div>`,
+  terminal:`
+    <div style="font-size:11px;color:var(--text-sub);margin-bottom:4px">
+      Type <code>help</code> for commands.
+    </div>
+    <div class="term-out" id="termOut"></div>
+    <input id="termIn" placeholder=">" style="margin-top:4px;width:100%;border-radius:6px;border:1px solid rgba(148,163,184,.6);background:rgba(15,23,42,.9);color:inherit;padding:4px;font-size:12px;outline:none">`,
+  taskmgr:`
+    <div style="font-size:12px;color:var(--text-sub);margin-bottom:4px">Running apps</div>
+    <div id="tmList" style="margin-bottom:8px"></div>
+    <button class="pill" id="tmEndAll">End all</button>`
+};
+
+/* Windows */
+const windows={},opened=new Set();let activeId=null,zBase=500;
+
+function createWindow(id){
+  if(windows[id])return windows[id];
+  const tpl=$('#winTpl').content.firstElementChild.cloneNode(true);
+  const app=APPS[id];
+  tpl.dataset.app=id;
+  tpl.querySelector('.win-title').textContent=app.name;
+  tpl.querySelector('.win-body').innerHTML=APP_HTML[id]||'<div>Empty</div>';
+  $('#winLayer').appendChild(tpl);
+  wireWindow(id,tpl);
+  windows[id]=tpl;
+  return tpl;
+}
+
+function wireWindow(id,w){
+  const dragBar=w.querySelector('[data-drag]');
+  let drag=null;
+
+  dragBar.onmousedown=e=>{
+    if(e.button!==0)return;
+    const r=w.getBoundingClientRect();
+    drag={ox:e.clientX-r.left,oy:e.clientY-r.top,startX:r.left,startY:r.top};
+    w.classList.add('dragging');
+    // don't clear snap classes here; unsnap only if moved away
+  };
+
+  window.addEventListener('mousemove',e=>{
+    if(!drag)return;
+    let x=e.clientX-drag.ox,y=e.clientY-drag.oy;
+    const m=6,mx=innerWidth-w.offsetWidth-m,my=innerHeight-w.offsetHeight-m;
+    x=Math.max(m,Math.min(mx,x));
+    y=Math.max(m,Math.min(my,y));
+    w.style.left=x+'px';
+    w.style.top=y+'px';
+  });
+
+  window.addEventListener('mouseup',e=>{
+    if(!drag)return;
+    const r=w.getBoundingClientRect();
+    const dx=Math.abs(r.left-drag.startX),dy=Math.abs(r.top-drag.startY);
+    const moved=dx>8||dy>8;
+    if(moved){
+      handleSnap(w,r.left,r.top);
+    }
+    drag=null;
+    w.classList.remove('dragging');
+  });
+
+  const rsR=w.querySelector('.resize-right');
+  const rsB=w.querySelector('.resize-bottom');
+  const rsC=w.querySelector('.resize-corner');
+  let rs=null;
+  function startResize(e,dir){
+    const r=w.getBoundingClientRect();
+    rs={dir,x:e.clientX,y:e.clientY,w:r.width,h:r.height};
+    e.preventDefault();
+    w.classList.add('dragging');
+    // keep snapped state; only remove maximize
+    w.classList.remove('maximized');
+  }
+  [rsR,rsB,rsC].forEach(el=>{
+    if(!el)return;
+    el.onmousedown=e=>{
+      const dir=el.classList.contains('resize-right')?'r':el.classList.contains('resize-bottom')?'b':'c';
+      startResize(e,dir);
+    };
+  });
+  window.addEventListener('mousemove',e=>{
+    if(!rs)return;
+    if(rs.dir==='r'||rs.dir==='c')w.style.width=Math.max(320,rs.w+(e.clientX-rs.x))+'px';
+    if(rs.dir==='b'||rs.dir==='c')w.style.height=Math.max(200,rs.h+(e.clientY-rs.y))+'px';
+  });
+  window.addEventListener('mouseup',()=>{
+    if(!rs)return;
+    rs=null;
+    w.classList.remove('dragging');
+  });
+
+  const minBtn=w.querySelector('[data-min]');
+  const maxBtn=w.querySelector('[data-max]');
+  const closeBtn=w.querySelector('[data-close]');
+  minBtn.onclick=e=>{e.stopPropagation();minimize(id);};
+  maxBtn.onclick=e=>{e.stopPropagation();toggleMax(id);};
+  closeBtn.onclick=e=>{e.stopPropagation();closeWin(id);};
+
+  w.addEventListener('mousedown',()=>bringToFront(id));
+}
+
+function handleSnap(w,x,y){
+  const margin=50;
+  const nearLeft = x<margin;
+  const nearRight = x>innerWidth-margin-w.offsetWidth;
+  const nearTop = y<margin;
+  const nearBottom = y>innerHeight-margin-w.offsetHeight;
+
+  w.classList.remove('maximized','split-left','split-right','snap-tl','snap-tr','snap-bl','snap-br');
+
+  // clear manual positions so CSS snap classes fully control placement
+  w.style.left='';
+  w.style.right='';
+  w.style.top='';
+  w.style.bottom='';
+
+  // animate on snap only
+  w.style.transition='opacity .18s ease-out, transform .08s ease-out';
+  setTimeout(()=>{w.style.transition='opacity .18s ease-out, transform .18s ease-out';},90);
+
+  if(nearTop && !nearLeft && !nearRight){
+    w.classList.add('maximized');
+  }else if(nearLeft && !nearTop && !nearBottom){
+    w.classList.add('split-left');
+  }else if(nearRight && !nearTop && !nearBottom){
+    w.classList.add('split-right');
+  }else if(nearTop && nearLeft){
+    w.classList.add('snap-tl');
+  }else if(nearTop && nearRight){
+    w.classList.add('snap-tr');
+  }else if(nearBottom && nearLeft){
+    w.classList.add('snap-bl');
+  }else if(nearBottom && nearRight){
+    w.classList.add('snap-br');
+  }else{
+    // unsnapped – no special class, instant
+  }
+}
+
+function bringToFront(id){
+  const w=windows[id];if(!w)return;
+  zBase++;w.style.zIndex=zBase;activeId=id;updateTaskbar();
+}
+function openWin(id){
+  const app=APPS[id];
+  if(!app||!app.installed){notify('App not installed','Use Store or Terminal to install.');return;}
+  const w=createWindow(id);
+  opened.add(id);
+  w.classList.remove('maximized','split-left','split-right','snap-tl','snap-tr','snap-bl','snap-br');
+  if(!w.style.left && !w.style.right){
+    w.style.left=(80+Object.keys(windows).length*20)% (innerWidth-360)+'px';
+    w.style.top='80px';
+  }
+  w.style.display='flex';
+  w.classList.remove('hidden');
+  void w.offsetWidth;
+  w.classList.add('visible');
+  bringToFront(id);
+
+  if(id==='browser') initBrowser(w);
+  if(id==='settings') initSettings(w);
+  if(id==='notes') initNotes(w);
+  if(id==='store') initStore(w);
+  if(id==='terminal') initTerminal(w);
+  if(id==='taskmgr') renderTaskMgr(w);
+
+  updateTaskbar();
+}
+function closeWin(id){
+  const w=windows[id];if(!w)return;
+  w.classList.remove('visible');
+  w.classList.add('hidden');
+  setTimeout(()=>{w.style.display='none';},160);
+  opened.delete(id);
+  if(activeId===id)activeId=null;
+  updateTaskbar();
+}
+function minimize(id){
+  const w=windows[id];if(!w)return;
+  w.classList.remove('visible');
+  w.classList.add('hidden');
+  setTimeout(()=>{w.style.display='none';},120);
+  updateTaskbar();
+}
+function toggleMax(id){
+  const w=windows[id];if(!w)return;
+  const isMax=w.classList.contains('maximized');
+  w.classList.remove('split-left','split-right','snap-tl','snap-tr','snap-bl','snap-br');
+  if(isMax)w.classList.remove('maximized');else w.classList.add('maximized');
+  bringToFront(id);
+}
+
+/* Taskbar */
+function updateTaskbar(){
+  const cont=$('#taskApps');cont.innerHTML='';
+  opened.forEach(id=>{
+    const app=APPS[id],w=windows[id];if(!app||!w)return;
+    const b=document.createElement('button');b.className='task-btn';b.textContent=app.name;
+    if(activeId===id && w.style.display!=='none')b.style.borderColor='#e5e7eb';
+    b.onclick=()=>{
+      if(w.style.display==='none' || w.classList.contains('hidden')){
+        w.style.display='flex';
+        w.classList.remove('hidden');
+        void w.offsetWidth;
+        w.classList.add('visible');
+        bringToFront(id);
+      }else minimize(id);
+    };
+    cont.appendChild(b);
+  });
+  renderTaskMgrList();
+}
+
+/* Taskbar auto-hide */
+let tbAuto=false;
+function setAutoHide(on){
+  tbAuto=on;
+  if(!on)$('#taskbar').style.transform='translateY(0)';
+  else $('#taskbar').style.transform='translateY(100%)';
+}
+window.addEventListener('mousemove',e=>{
+  if(!tbAuto)return;
+  const bar=$('#taskbar');
+  const r=bar.getBoundingClientRect();
+  const nearBottom=e.clientY>=innerHeight-4; // bottom 4px
+  const overBar=e.clientY>=r.top && e.clientY<=r.bottom;
+  if(nearBottom || overBar) bar.style.transform='translateY(0)';
+  else bar.style.transform='translateY(100%)';
+});
+
+/* Start menu */
+$('#startBtn').onclick=e=>{
+  e.stopPropagation();
+  const s=$('#startMenu');
+  s.style.display=s.style.display?'':'block';
+};
+document.addEventListener('click',e=>{
+  if(!$('#startMenu').contains(e.target)&&e.target!==$('#startBtn'))$('#startMenu').style.display='none';
+});
+function minimizeAll(){
+  Array.from(opened).forEach(id=>minimize(id));
+}
+$('#startLock').onclick=()=>{
+  minimizeAll();
+  $('#lockscreen').style.display='flex';
+  $('#startMenu').style.display='none';
+};
+$('#startSignout').onclick=()=>{
+  minimizeAll();
+  $('#lockscreen').style.display='flex';
+  $('#startMenu').style.display='none';
+};
+$('#startShutdown').onclick=()=>{
+  minimizeAll();
+  location.reload();
+};
+$('#btnTaskMgr').onclick=()=>openWin('taskmgr');
+$('#btnAccountSettings').onclick=()=>{
+  openWin('settings');
+  const w=windows.settings;
+  if(w && w._selectTab)w._selectTab('account');
+  $('#startMenu').style.display='none';
+};
+
+/* Start tiles + drag-to-desktop shortcuts */
+const startGrid=$('#startGrid');
+Object.keys(APPS).forEach(id=>{
+  const app=APPS[id];if(!app.pinned)return;
+  const t=document.createElement('div');t.className='start-tile';t.dataset.app=id;
+  t.innerHTML='<div class="icon-body"></div><div>'+app.name+'</div>';
+  t.onclick=()=>{openWin(id);$('#startMenu').style.display='none';};
+  t.oncontextmenu=e=>{e.preventDefault();ctxTarget={type:'start',appId:id,el:t};showCtx(e.clientX,e.clientY);};
+  t.draggable=true;
+  t.addEventListener('dragstart',e=>{
+    e.dataTransfer.setData('text/app-id',id);
+  });
+  if(app.installed)t.classList.add('show');
+  startGrid.appendChild(t);
+});
+function refreshStartTiles(){
+  $$('#startGrid .start-tile').forEach(t=>{
+    const id=t.dataset.app,app=APPS[id];
+    t.classList.toggle('show',app.installed&&app.pinned);
+  });
+}
+
+/* Task Manager */
+function renderTaskMgr(win){
+  renderTaskMgrList();
+  win.querySelector('#tmEndAll').onclick=()=>{
+    Array.from(opened).forEach(id=>{if(id!=='taskmgr')closeWin(id);});
+    renderTaskMgrList();
+  };
+}
+function renderTaskMgrList(){
+  const w=windows.taskmgr;if(!w)return;
+  const list=w.querySelector('#tmList');if(!list)return;
+  list.innerHTML='';
+  opened.forEach(id=>{
+    if(id==='taskmgr')return;
+    const row=document.createElement('div');
+    row.style.display='flex';row.style.justifyContent='space-between';row.style.alignItems='center';
+    row.style.marginBottom='4px';row.style.borderRadius='8px';row.style.padding='4px 6px';row.style.background='rgba(15,23,42,.9)';
+    row.innerHTML=`<span>${APPS[id].name}</span>`;
+    const btn=document.createElement('button');btn.className='pill';btn.textContent='End';
+    btn.onclick=()=>{closeWin(id);renderTaskMgrList();};
+    row.appendChild(btn);list.appendChild(row);
+  });
+}
+
+/* Transparency system */
+const GLASS_KEY='lp_glass_level';
+let glassSlider=null,glassLabel=null;
+function applyGlassLevel(v){
+  const t=v/100;
+  const minAlpha=0.35,maxAlpha=0.95;
+  const alpha=minAlpha+(1-t)*(maxAlpha-minAlpha);
+  const blur=14+(t*10);
+  const borderAlpha=0.35+(t*0.25);
+  const iconAlpha=0.55+(1-t)*0.2;
+  document.documentElement.style.setProperty('--ui-glass-bg',`rgba(15,23,42,${alpha.toFixed(2)})`);
+  document.documentElement.style.setProperty('--ui-glass-blur',`${blur.toFixed(0)}px`);
+  document.documentElement.style.setProperty('--ui-glass-border',`rgba(148,163,184,${borderAlpha.toFixed(2)})`);
+  document.documentElement.style.setProperty('--icon-glass-bg',`rgba(15,23,42,${iconAlpha.toFixed(2)})`);
+  localStorage.setItem(GLASS_KEY,String(v));
+  if(glassLabel)glassLabel.textContent=`${v}%`;
+}
+const savedGlass=parseInt(localStorage.getItem(GLASS_KEY)||'50',10);
+applyGlassLevel(savedGlass);
+
+/* Browser */
+function initBrowser(win){
+  if(win._browserInit)return;win._browserInit=true;
+  const bInner=win.querySelector('#bInner');
+  const bUrl=win.querySelector('#bUrl');
+  const tabBar=win.querySelector('#bTabs');
+  const tabs=[];let active=-1;
+  const PROXY_BASE="";
+  function setTabTitle(t){if(active<0)return;tabs[active].title=t;renderTabs();}
+  function renderTabs(){
+    tabBar.innerHTML='';
+    tabs.forEach((t,i)=>{
+      const el=document.createElement('div');el.className='btab'+(i===active?' active':'');
+      const lab=document.createElement('span');lab.textContent=t.title||'New tab';
+      const close=document.createElement('span');close.className='btab-close';close.textContent='✕';
+      close.onclick=e=>{e.stopPropagation();closeTab(i);};
+      el.append(lab,close);el.title=t.url;el.onclick=()=>switchTab(i);
+      tabBar.appendChild(el);
+    });
+  }
+  function addTab(url='lp://home'){
+    tabs.push({url,history:[url],i:0,title:'New tab'});
+    active=tabs.length-1;renderTabs();navigate(url,false);
+  }
+  function closeTab(i){
+    if(tabs.length===1)return;
+    tabs.splice(i,1);
+    if(active>=tabs.length)active=tabs.length-1;
+    renderTabs();navigate(tabs[active].url,false);
+  }
+  function switchTab(i){active=i;renderTabs();navigate(tabs[i].url,false);}
+  function toUrlOrSearch(x){
+    x=x.trim();if(!x)return null;
+    if(x.startsWith('lp://'))return x;
+    if(x.startsWith('http://')||x.startsWith('https://'))return x;
+    if(x.includes('.')&&!x.includes(' '))return'http://'+x;
+    return'lp://search?q='+encodeURIComponent(x);
+  }
+  function renderInternal(u){
+    bInner.innerHTML='';
+    const t=document.createElement('div');t.style.fontWeight='600';t.textContent='Liquid Plastic Browser';
+    const s=document.createElement('div');s.style.fontSize='12px';s.style.color='var(--text-sub)';s.textContent=u;
+    const b=document.createElement('div');b.style.fontSize='12px';b.style.color='var(--text-sub)';b.style.marginTop='6px';
+    if(u==='lp://home')b.innerHTML='Welcome. Try <code>lp://about</code>, <code>lp://apps</code>, <code>lp://bookmarks</code>.';
+    else if(u==='lp://about')b.textContent='Internal lp:// pages and proxy-based viewing.';
+    else if(u.startsWith('lp://apps')){
+      b.innerHTML='<div>Installed apps:</div><ul style="margin-left:16px">'+
+        Object.entries(APPS).filter(([id,a])=>a.installed).map(([id,a])=>`<li>${a.name}</li>`).join('')+'</ul>';
+    }else if(u.startsWith('lp://search')){
+      const q=new URLSearchParams(u.split('?')[1]||'').get('q')||'';
+      b.innerHTML=`<div>Search query: <strong>${q.replace(/</g,'&lt;')}</strong></div>
+        <div style="font-size:11px;margin-top:4px">Wire this to your proxy or API for real search.</div>`;
+    }else if(u==='lp://bookmarks'){
+      const list=JSON.parse(localStorage.getItem('lp_bm')||'[]');
+      if(!list.length)b.textContent='No bookmarks.';
+      else{
+        const ul=document.createElement('ul');ul.style.marginLeft='16px';
+        list.forEach(bm=>{
+          const li=document.createElement('li');
+          const a=document.createElement('a');a.href='#';a.textContent=bm.title||bm.url;a.style.color='var(--accent)';
+          a.onclick=e=>{e.preventDefault();bUrl.value=bm.url;navigate(bm.url,true);};
+          li.appendChild(a);ul.appendChild(li);
+        });
+        b.appendChild(ul);
+      }
+    }else b.textContent='Internal page.';
+    bInner.append(t,s,b);setTabTitle('LP');
+  }
+  async function renderProxy(url){
+    bInner.innerHTML=`<div style="font-size:12px;color:var(--text-sub)">Loading ${url}...</div>`;
+    if(!PROXY_BASE){
+      bInner.innerHTML=`<div style="font-size:12px;color:#f97373">Proxy not configured.</div><div style="font-size:11px;color:var(--text-sub)">Set PROXY_BASE in code.</div>`;
+      return;
+    }
+    try{
+      const res=await fetch(PROXY_BASE+'?url='+encodeURIComponent(url));
+      if(!res.ok)throw new Error('Proxy error');
+      const data=await res.json();
+      bInner.innerHTML='';
+      const t=document.createElement('div');t.style.fontWeight='600';t.textContent=data.title||url;
+      const s=document.createElement('div');s.style.fontSize='12px';s.style.color='var(--text-sub)';s.textContent=data.url||url;
+      const b=document.createElement('div');b.style.fontSize='12px';b.style.color='var(--text-sub)';b.style.marginTop='6px';
+      b.innerHTML=data.content||'<p>No readable content.</p>';
+      bInner.append(t,s,b);setTabTitle(data.title||'Page');
+    }catch(e){
+      bInner.innerHTML=`<div style="font-size:12px;color:#f97373">Failed to load.</div><div style="font-size:11px;color:var(--text-sub)">${e.message}</div>`;
+    }
+  }
+  function navigate(input,pushHist){
+    if(active<0)return;
+    let u=toUrlOrSearch(input);if(!u)return;
+    const tab=tabs[active];
+    if(pushHist){
+      if(tab.i<tab.history.length-1)tab.history.splice(tab.i+1);
+      tab.history.push(u);tab.i=tab.history.length-1;
+    }
+    tab.url=u;bUrl.value=u;
+    if(u.startsWith('lp://'))renderInternal(u);else renderProxy(u);
+    renderTabs();
+  }
+  win.querySelector('#bGo').onclick=()=>navigate(bUrl.value,true);
+  bUrl.onkeydown=e=>{if(e.key==='Enter')navigate(bUrl.value,true);};
+  win.querySelector('#bBack').onclick=()=>{
+    const t=tabs[active];if(t.i>0){t.i--;navigate(t.history[t.i],false);}
+  };
+  win.querySelector('#bFwd').onclick=()=>{
+    const t=tabs[active];if(t.i<t.history.length-1){t.i++;navigate(t.history[t.i],false);}
+  };
+  win.querySelector('#bHome').onclick=()=>navigate('lp://home',true);
+  win.querySelector('#bNewTab').onclick=()=>addTab('lp://home');
+  win.querySelector('#bStar').onclick=()=>{
+    const t=tabs[active];const list=JSON.parse(localStorage.getItem('lp_bm')||'[]');
+    list.push({title:t.title||t.url,url:t.url});localStorage.setItem('lp_bm',JSON.stringify(list));
+    notify('Bookmark added',t.url);
+  };
+  addTab('lp://home');
+}
+
+/* Notes */
+const NOTES_KEY='lp_notes_v1';let notes=[];
+function loadNotes(){try{notes=JSON.parse(localStorage.getItem(NOTES_KEY)||'[]');}catch{notes=[]}
+  if(!notes.length)notes=[{id:Date.now().toString(),title:'Welcome',body:'This is your first note.'}];
+}
+loadNotes();let curNoteId=notes[0].id;
+function saveNotes(){localStorage.setItem(NOTES_KEY,JSON.stringify(notes));}
+function initNotes(win){
+  if(win._notes)return;win._notes=true;
+  const listEl=win.querySelector('#noteList');
+  const tEl=win.querySelector('#noteTitle');
+  const bEl=win.querySelector('#noteBody');
+  function renderList(){
+    listEl.innerHTML='';
+    notes.forEach(n=>{
+      const row=document.createElement('div');
+      row.style.display='flex';row.style.justifyContent='space-between';row.style.alignItems='center';
+      row.style.padding='4px 6px';row.style.borderRadius='6px';row.style.cursor='pointer';
+      if(n.id===curNoteId)row.style.background='var(--accent)';
+      const label=document.createElement('span');label.textContent=n.title||'Untitled';
+      const trash=document.createElement('span');trash.textContent='🗑️';trash.style.marginLeft='6px';trash.style.cursor='pointer';
+      row.onclick=e=>{if(e.target===trash)return;openNote(n.id);};
+      trash.onclick=e=>{
+        e.stopPropagation();
+        notes=notes.filter(x=>x.id!==n.id);
+        if(curNoteId===n.id)curNoteId=notes.length?notes[0].id:null;
+        saveNotes();renderList();if(curNoteId)openNote(curNoteId);else{tEl.value='';bEl.value='';}
+      };
+      row.append(label,trash);listEl.appendChild(row);
+    });
+  }
+  function openNote(id){
+    const n=notes.find(x=>x.id===id);if(!n)return;curNoteId=id;
+    tEl.value=n.title;bEl.value=n.body;renderList();
+  }
+  function upd(){
+    const n=notes.find(x=>x.id===curNoteId);if(!n)return;
+    n.title=tEl.value;n.body=bEl.value;saveNotes();renderList();
+  }
+  win.querySelector('#noteNew').onclick=()=>{
+    const id=Date.now().toString();notes.unshift({id,title:'New note',body:''});curNoteId=id;saveNotes();renderList();openNote(id);
+  };
+  tEl.oninput=upd;bEl.oninput=upd;
+  renderList();openNote(curNoteId);
+}
+
+/* Store */
+const STORE_APPS=[
+  {id:'browser',name:'Browser',desc:'Liquid Plastic web browser'},
+  {id:'notes',name:'Notes',desc:'Take notes'},
+  {id:'store',name:'Store',desc:'App marketplace'},
+  {id:'terminal',name:'Terminal',desc:'Command-line interface'},
+  {id:'taskmgr',name:'Task Manager',desc:'Manage apps'}
+];
+function initStore(win){
+  if(win._store)return;win._store=true;
+  const grid=win.querySelector('#storeGrid');
+  function render(){
+    grid.innerHTML='';
+    STORE_APPS.forEach(meta=>{
+      const card=document.createElement('div');
+      card.style.borderRadius='10px';card.style.padding='8px';
+      card.style.background='rgba(15,23,42,.98)';card.style.border='1px solid rgba(148,163,184,.5)';
+      card.innerHTML=`<div>${meta.name}</div><div style="font-size:12px;color:var(--text-sub)">${meta.desc}</div>`;
+      const row=document.createElement('div');
+      row.style.display='flex';row.style.gap='6px';row.style.alignItems='center';row.style.marginTop='6px';
+      const install=document.createElement('button');install.className='pill';
+      const uninstall=document.createElement('button');uninstall.className='pill';uninstall.textContent='Uninstall';
+      const spin=document.createElement('span');spin.textContent='⏳';spin.style.display='none';spin.style.fontSize='12px';
+      function sync(){
+        const app=APPS[meta.id];
+        if(app.installed){install.textContent='Installed';install.disabled=true;uninstall.disabled=false;spin.style.display='none';}
+        else{install.textContent='Install';install.disabled=false;uninstall.disabled=true;spin.style.display='none';}
+      }
+      install.onclick=()=>{
+        const app=APPS[meta.id];spin.style.display='inline-block';install.textContent='Installing...';
+        install.disabled=true;uninstall.disabled=true;
+        setTimeout(()=>{
+          app.installed=true;app.pinned=true;createWindow(meta.id);refreshStartTiles();sync();
+          notify('Installed',meta.name+' is ready.');
+        },800);
+      };
+      uninstall.onclick=()=>{
+        const app=APPS[meta.id];app.installed=false;sync();refreshStartTiles();
+        if(windows[meta.id])closeWin(meta.id);notify('Uninstalled',meta.name+' removed.');
+      };
+      sync();row.append(install,uninstall,spin);card.appendChild(row);grid.appendChild(card);
+    });
+  }
+  render();
+}
+
+/* Terminal */
+function initTerminal(win){
+  if(win._term)return;win._term=true;
+  const out=win.querySelector('#termOut');
+  const inp=win.querySelector('#termIn');
+  function print(line){
+    const d=document.createElement('div');d.className='term-line';d.textContent=line;
+    out.appendChild(d);out.scrollTop=out.scrollHeight;
+  }
+  function help(){
+    print('Commands:');
+    print('  help                 Show this help');
+    print('  clear                Clear the terminal');
+    print('  apps                 List apps');
+    print('  install <app>        Install an app');
+    print('  open <app>           Open an app');
+  }
+  function listApps(){
+    Object.entries(APPS).forEach(([id,a])=>{
+      print(`${id} - ${a.name} [${a.installed?'installed':'not installed'}]`);
+    });
+  }
+  function installApp(id){
+    if(!APPS[id]){print('Unknown app: '+id);return;}
+    if(APPS[id].installed){print('Already installed: '+id);return;}
+    APPS[id].installed=true;APPS[id].pinned=true;refreshStartTiles();
+    notify('Installed',APPS[id].name+' installed via Terminal.');
+    print('Installed '+id);
+  }
+  function openApp(id){
+    if(!APPS[id]){print('Unknown app: '+id);return;}
+    openWin(id);print('Opened '+id);
+  }
+  help();
+  inp.onkeydown=e=>{
+    if(e.key!=='Enter')return;
+    const v=inp.value.trim();inp.value='';
+    if(!v)return;
+    print('> '+v);
+    const parts=v.split(/\s+/);
+    const cmd=parts[0].toLowerCase();
+    const arg=(parts[1]||'').toLowerCase();
+    if(cmd==='help')help();
+    else if(cmd==='clear')out.innerHTML='';
+    else if(cmd==='apps')listApps();
+    else if(cmd==='install'&&arg)installApp(arg);
+    else if(cmd==='open'&&arg)openApp(arg);
+    else print('Unknown command. Type "help".');
+  };
+}
+
+/* Desktop icons / shortcuts */
+const desk=$('#desktopIcons');let iconId=0,iconsData={},folders={};
+function gridSnap(x,y){
+  const g=80,sx=18,sy=30;
+  const c=Math.max(0,Math.round((x-sx)/g));
+  const r=Math.max(0,Math.round((y-sy)/g));
+  return {x:sx+c*g,y:sy+r*g};
+}
+function createIcon(appId,x=20,y=20){
+  const app=APPS[appId];if(!app)return;
+  const id='icon'+(++iconId);
+  const el=document.createElement('div');el.className='icon';el.dataset.icon=id;
+  const s=gridSnap(x,y);el.style.left=s.x+'px';el.style.top=s.y+'px';
+  el.innerHTML='<div class="icon-body"></div><div class="icon-label">'+app.name+'</div>';
+  desk.appendChild(el);
+  iconsData[id]={type:'app',appId};
+  el.ondblclick=()=>openWin(appId);
+  el.oncontextmenu=e=>{e.preventDefault();ctxTarget={type:'icon',id,el};showCtx(e.clientX,e.clientY);};
+  wireIconDrag(el,id);
+}
+function wireIconDrag(el,id){
+  let drag=null;
+  el.onmousedown=e=>{
+    if(e.button!==0)return;
+    e.stopPropagation();
+    hideCtx();
+    const sel=getSelectedIcons();
+    const group=sel.length>1 && el.classList.contains('selected')?sel:[el];
+    const starts=group.map(ic=>({el:ic,x:parseInt(ic.style.left)||0,y:parseInt(ic.style.top)||0}));
+    drag={group,starts,sx:e.clientX,sy:e.clientY};
+  };
+  window.addEventListener('mousemove',e=>{
+    if(!drag)return;
+    const dx=e.clientX-drag.sx,dy=e.clientY-drag.sy;
+    drag.group.forEach((ic,i)=>{
+      ic.style.left=drag.starts[i].x+dx+'px';
+      ic.style.top=drag.starts[i].y+dy+'px';
+    });
+  });
+  window.addEventListener('mouseup',e=>{
+    if(!drag)return;
+    drag.group.forEach(ic=>{
+      const s=gridSnap(parseInt(ic.style.left)||0,parseInt(ic.style.top)||0);
+      ic.style.left=s.x+'px';ic.style.top=s.y+'px';
+    });
+    drag=null;
+  });
+}
+function getSelectedIcons(){return $$('#desktopIcons .icon.selected');}
+function clearSelection(){getSelectedIcons().forEach(i=>i.classList.remove('selected'));}
+
+/* Selection box */
+const selBox=$('#selectBox');let selState=null;
+document.addEventListener('mousedown',e=>{
+  if(e.button!==0)return;
+  if(e.target.closest('.icon')||e.target.closest('.window')||e.target.closest('#taskbar')||e.target.closest('#startMenu')||e.target.closest('#notifPanel'))return;
+  hideCtx();
+  clearSelection();
+  selState={x:e.clientX,y:e.clientY,active:false};
+});
+document.addEventListener('mousemove',e=>{
+  if(!selState)return;
+  const dx=Math.abs(e.clientX-selState.x),dy=Math.abs(e.clientY-selState.y);
+  if(!selState.active && (dx>6||dy>6)){
+    selState.active=true;selBox.style.display='block';
+  }
+  if(!selState.active)return;
+  const x=Math.min(selState.x,e.clientX),y=Math.min(selState.y,e.clientY);
+  const w=Math.abs(e.clientX-selState.x),h=Math.abs(e.clientY-selState.y);
+  selBox.style.left=x+'px';selBox.style.top=y+'px';selBox.style.width=w+'px';selBox.style.height=h+'px';
+  const r=selBox.getBoundingClientRect();
+  $$('#desktopIcons .icon').forEach(ic=>{
+    const ir=ic.getBoundingClientRect();
+    const overlap=!(ir.right<r.left||ir.left>r.right||ir.bottom<r.top||ir.top>r.bottom);
+    ic.classList.toggle('selected',overlap);
+  });
+});
+document.addEventListener('mouseup',()=>{
+  if(selState){selBox.style.display='none';selState=null;}
+});
+
+/* Folder popup */
+function openFolder(folderId,atEl){
+  const f=folders[folderId];if(!f)return;
+  const grid=$('#folderApps');grid.innerHTML='';
+  f.apps.forEach(aid=>{
+    const app=APPS[aid];if(!app)return;
+    const d=document.createElement('div');d.className='folder-app';d.textContent=app.name;
+    d.onclick=()=>{openWin(aid);$('#folderPopup').style.display='none';};
+    grid.appendChild(d);
+  });
+  const pop=$('#folderPopup');const r=atEl.getBoundingClientRect();
+  pop.style.left=Math.min(r.left,innerWidth-260)+'px';
+  pop.style.top=Math.min(r.top,innerHeight-260)+'px';
+  pop.style.display='block';
+}
+$('#folderClose').onclick=()=>$('#folderPopup').style.display='none';
+
+/* Context menu */
+let ctxTarget=null;
+function showCtx(x,y){
+  const m=$('#ctxMenu');m.style.left=x+'px';m.style.top=y+'px';m.style.display='block';
+}
+function hideCtx(){$('#ctxMenu').style.display='none';ctxTarget=null;}
+document.addEventListener('click',e=>{if(!$('#ctxMenu').contains(e.target))hideCtx();});
+desk.oncontextmenu=e=>{
+  if(e.target.closest('.icon'))return;
+  e.preventDefault();ctxTarget={type:'desktop'};showCtx(e.clientX,e.clientY);
+};
+function alignIcons(){
+  const taken={};
+  $$('#desktopIcons .icon').forEach(el=>{
+    let x=parseInt(el.style.left)||20,y=parseInt(el.style.top)||20;
+    let {x:nx,y:ny}=gridSnap(x,y),key=`${nx},${ny}`,tries=0;
+    while(taken[key]&&tries<200){ny+=80;key=`${nx},${ny}`;tries++;}
+    taken[key]=true;el.style.left=nx+'px';el.style.top=ny+'px';
+  });
+}
+$('#ctxMenu').onclick=e=>{
+  const act=e.target.dataset.act;if(!act)return;
+  if(act==='align'){alignIcons();hideCtx();return;}
+  if(!ctxTarget){hideCtx();return;}
+  if(ctxTarget.type==='icon'){
+    const id=ctxTarget.id,el=ctxTarget.el,data=iconsData[id];
+    if(act==='open'){
+      if(data.type==='app')openWin(data.appId);
+      else if(data.type==='folder')openFolder(data.folderId,el);
+    }else if(act==='rename'&&data.type==='app'){
+      const label=el.querySelector('.icon-label');const n=prompt('New name:',label.textContent);if(n)label.textContent=n;
+    }else if(act==='pin'&&data.type==='app'){
+      const app=APPS[data.appId];app.pinned=!app.pinned;refreshStartTiles();
+      notify(app.pinned?'Pinned to Start':'Unpinned',app.name);
+    }else if(act==='del'){
+      delete iconsData[id];
+      el.remove();
+    }
+  }else if(ctxTarget.type==='start'&&act==='pin'){
+    const app=APPS[ctxTarget.appId];app.pinned=!app.pinned;refreshStartTiles();
+    notify(app.pinned?'Pinned to Start':'Unpinned',app.name);
+  }
+  hideCtx();
+}
+
+/* Drag from Start to Desktop for shortcuts */
+document.addEventListener('dragover',e=>{
+  if(e.dataTransfer && e.dataTransfer.types.includes('text/app-id'))e.preventDefault();
+});
+document.addEventListener('drop',e=>{
+  if(!e.dataTransfer)return;
+  const appId=e.dataTransfer.getData('text/app-id');
+  if(!appId)return;
+  const rect=desk.getBoundingClientRect();
+  const x=e.clientX-rect.left,y=e.clientY-rect.top;
+  createIcon(appId,x,y);
+});
+
+/* Settings */
+function initSettings(win){
+  if(win._settings)return;win._settings=true;
+  const body=win.querySelector('#setBody');
+  const nav=win.querySelectorAll('[data-tab]');
+  function load(tab){
+    nav.forEach(p=>p.style.background='');
+    const btn=win.querySelector(`[data-tab="${tab}"]`);if(btn)btn.style.background='var(--accent)';
+    if(tab==='appearance'){
+      body.innerHTML=`
+        <div style="margin-bottom:6px">Wallpaper</div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:8px">
+          <button class="pill" data-wall="default">Default</button>
+          <button class="pill" data-wall="aurora">Aurora</button>
+          <button class="pill" data-wall="forest">Forest</button>
+          <button class="pill" data-wall="sunset">Sunset</button>
+          <button class="pill" data-wall="mono">Mono</button>
+        </div>
+        <button class="pill" id="btnWallUpload">Upload wallpaper</button>
+        <input type="file" id="wallInput" accept="image/*" style="display:none">
+
+        <div style="margin-top:10px">Accent color</div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:4px">
+          <button class="pill" data-accent="#4aa8ff">Blue</button>
+          <button class="pill" data-accent="#22c55e">Green</button>
+          <button class="pill" data-accent="#f97316">Orange</button>
+          <button class="pill" data-accent="#ec4899">Pink</button>
+          <button class="pill" data-accent="#a855f7">Purple</button>
+        </div>
+
+        <div style="margin-top:10px">Window corners</div>
+        <div style="display:flex;gap:6px;margin-top:4px">
+          <button class="pill" id="winRounded">Rounded</button>
+          <button class="pill" id="winSharp">Sharp</button>
+        </div>
+
+        <div style="margin-top:10px">Clock format</div>
+        <div style="display:flex;gap:6px;margin-top:4px">
+          <button class="pill" id="clk12">12 hour</button>
+          <button class="pill" id="clk24">24 hour</button>
+        </div>`;
+
+      body.querySelectorAll('[data-wall]').forEach(b=>b.onclick=()=>{
+        const v=b.dataset.wall;
+        document.body.style.backgroundImage='';
+        if(v==='default')document.body.style.background='var(--bg-gradient)';
+        else if(v==='aurora')document.body.style.background='radial-gradient(circle at top,#22c1c3 0%,#020617 70%)';
+        else if(v==='forest')document.body.style.background='radial-gradient(circle at top,#16a34a 0%,#020617 70%)';
+        else if(v==='sunset')document.body.style.background='radial-gradient(circle at top,#fb923c 0%,#020617 70%)';
+        else document.body.style.background='radial-gradient(circle at top,#9ca3af 0%,#020617 70%)';
+        document.body.style.backgroundRepeat='no-repeat';
+        document.body.style.backgroundAttachment='fixed';
+      });
+      const wBtn=body.querySelector('#btnWallUpload');
+      const wInput=body.querySelector('#wallInput');
+      wBtn.onclick=()=>wInput.click();
+      wInput.onchange=e=>{
+        const f=e.target.files[0];if(!f)return;
+        const r=new FileReader();
+        r.onload=ev=>{
+          document.body.style.backgroundImage=`url(${ev.target.result})`;
+          document.body.style.backgroundSize='cover';
+          document.body.style.backgroundPosition='center';
+          notify('Wallpaper','Custom wallpaper applied.');
+        };
+        r.readAsDataURL(f);
+      };
+
+      body.querySelectorAll('[data-accent]').forEach(b=>{
+        b.onclick=()=>{
+          const col=b.dataset.accent;
+          document.documentElement.style.setProperty('--accent',col);
+        };
+      });
+      body.querySelector('#winRounded').onclick=()=>{
+        document.documentElement.style.setProperty('--radius','18px');
+      };
+      body.querySelector('#winSharp').onclick=()=>{
+        document.documentElement.style.setProperty('--radius','0px');
+      };
+      body.querySelector('#clk12').onclick=()=>{use12h=true;tick();};
+      body.querySelector('#clk24').onclick=()=>{use12h=false;tick();};
+    }else if(tab==='system'){
+      body.innerHTML=`
+        <div style="margin-bottom:6px">Taskbar auto-hide</div>
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:10px">
+          <div class="toggle" id="togHide"><div class="toggle-thumb"></div></div>
+          <div style="font-size:11px;color:var(--text-sub)">Hide taskbar until cursor is at the bottom edge</div>
+        </div>
+        <div style="font-size:12px;color:var(--text-sub)">More system settings can go here later.</div>`;
+      const tog=body.querySelector('#togHide');
+      if(tbAuto)tog.classList.add('on');
+      tog.onclick=()=>{
+        tog.classList.toggle('on');
+        setAutoHide(tog.classList.contains('on'));
+      };
+    }else if(tab==='account'){
+      body.innerHTML=`
+        <div style="margin-bottom:6px;display:flex;align-items:center;gap:10px">
+          <div id="accPreview" class="avatar" style="width:32px;height:32px;font-size:14px;"></div>
+          <div>
+            <div style="font-size:12px;color:var(--text-sub)">Current profile picture</div>
+          </div>
+        </div>
+
+        <div style="margin-bottom:6px">Account name</div>
+        <input id="accName" style="width:100%;padding:6px;border-radius:8px;border:1px solid rgba(148,163,184,.6);background:rgba(15,23,42,.9);color:inherit;outline:none" value="${accName}">
+        <div style="margin:8px 0 6px">Avatar initials</div>
+        <input id="accInit" maxlength="2" style="width:70px;padding:6px;border-radius:999px;border:1px solid rgba(148,163,184,.6);background:rgba(15,23,42,.9);color:inherit;outline:none;text-align:center" value="${accInit}">
+        <div style="margin:8px 0 6px">Avatar picture</div>
+        <button class="pill" id="btnAvatarUpload">Upload profile picture</button>
+        <input type="file" id="avatarInput" accept="image/*" style="display:none">
+        <div style="margin:8px 0 6px">Require password on unlock</div>
+        <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px">
+          <div class="toggle" id="togReq"><div class="toggle-thumb"></div></div>
+          <div style="font-size:11px;color:var(--text-sub)">Prompt for password on lockscreen</div>
+        </div>
+        <div style="margin-bottom:6px">Password</div>
+        <input id="accPass" type="password" placeholder="Set password" style="width:100%;padding:6px;border-radius:8px;border:1px solid rgba(148,163,184,.6);background:rgba(15,23,42,.9);color:inherit;outline:none">`;
+      const preview=body.querySelector('#accPreview');applyAvatar(preview);
+      const tog=body.querySelector('#togReq');if(requirePass)tog.classList.add('on');
+      body.querySelector('#accName').oninput=e=>{accName=e.target.value||'User';refreshAccount();};
+      body.querySelector('#accInit').oninput=e=>{accInit=(e.target.value||'').slice(0,2);refreshAccount();applyAvatar(preview);};
+      tog.onclick=()=>{tog.classList.toggle('on');requirePass=tog.classList.contains('on');updateLockUI();};
+      body.querySelector('#accPass').onchange=e=>{accPass=e.target.value||'';if(accPass)notify('Password','Lockscreen password set.');};
+      const aBtn=body.querySelector('#btnAvatarUpload');
+      const aInput=body.querySelector('#avatarInput');
+      aBtn.onclick=()=>aInput.click();
+      aInput.onchange=e=>{
+        const f=e.target.files[0];if(!f)return;
+        const r=new FileReader();
+        r.onload=ev=>{
+          accPic=ev.target.result;
+          refreshAccount();
+          applyAvatar(preview);
+          notify('Account','Profile picture updated.');
+        };
+        r.readAsDataURL(f);
+      };
+    }else if(tab==='glass'){
+      body.innerHTML=`
+        <div style="margin-bottom:6px">Transparency presets</div>
+        <div style="display:flex;gap:6px;margin-bottom:6px">
+          <button class="pill" id="glassGlassy">Glassy</button>
+          <button class="pill" id="glassBalanced">Balanced</button>
+          <button class="pill" id="glassSolid">Solid</button>
+        </div>
+        <div style="margin-bottom:4px">Custom level</div>
+        <div style="display:flex;align-items:center;gap:6px">
+          <input id="glassSlider" type="range" min="0" max="100" value="50" style="flex:1">
+          <span id="glassLabel" style="font-size:11px;color:var(--text-sub)">50%</span>
+        </div>
+        <div style="margin-top:8px;font-size:11px;color:var(--text-sub)">Affects taskbar, icons, start menu, folders, context menus, notifications.</div>`;
+      glassSlider=body.querySelector('#glassSlider');
+      glassLabel=body.querySelector('#glassLabel');
+      const saved=parseInt(localStorage.getItem(GLASS_KEY)||'50',10);
+      glassSlider.value=saved;
+      applyGlassLevel(saved);
+      glassSlider.oninput=()=>applyGlassLevel(+glassSlider.value);
+      body.querySelector('#glassGlassy').onclick=()=>{glassSlider.value=80;applyGlassLevel(80);};
+      body.querySelector('#glassBalanced').onclick=()=>{glassSlider.value=50;applyGlassLevel(50);};
+      body.querySelector('#glassSolid').onclick=()=>{glassSlider.value=20;applyGlassLevel(20);};
+    }
+  }
+  nav.forEach(p=>p.onclick=()=>load(p.dataset.tab));
+  win._selectTab=load;
+  load('appearance');
+}
+
+/* Clean desktop by default – no initial icons */
+
+})();
+</script>
+</body>
+</html>
