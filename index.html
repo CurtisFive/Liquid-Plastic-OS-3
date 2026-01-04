@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8">
+<meta charset="utf-8" />
 <title>Liquid Plastic OS 1.x</title>
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1" />
 <style>
 :root{
   --accent:#4aa8ff;
@@ -49,9 +49,9 @@ button:hover,
 .start-tile:hover,
 .tb-app:hover,
 .win-btn:hover {
-  box-shadow:0 0 16px rgba(59,130,246,0.9);
+  box-shadow:0 0 18px rgba(59,130,246,0.95);
   border-color:var(--accent);
-  background:rgba(37,99,235,0.25);
+  background:rgba(37,99,235,0.12);
   transform:translateY(-1px);
 }
 
@@ -133,6 +133,7 @@ button:hover,
 #desktopIcons{position:fixed;inset:0;padding:8px;pointer-events:none}
 .icon{
   position:absolute;width:76px;text-align:center;font-size:11px;pointer-events:auto;cursor:pointer;
+  user-select:none;
 }
 .icon-body{
   width:46px;height:46px;margin:0 auto 4px;border-radius:18px;
@@ -174,13 +175,15 @@ button:hover,
 
 /* Taskbar – flat, not pill */
 #taskbar{
-  position:fixed;left:0;right:0;bottom:0;height:46px;padding:4px 10px;
+  position:fixed;left:0;right:0;bottom:0;height:46px;
+  padding:6px 10px 4px; /* slight top padding to avoid clipping outlines */
   display:flex;align-items:center;gap:8px;z-index:800;
   background:rgba(15,23,42,var(--glass-opacity));
   border-top:1px solid rgba(148,163,184,var(--glass-border-alpha));
   backdrop-filter:blur(20px) saturate(180%);
   -webkit-backdrop-filter:blur(20px) saturate(180%);
   border-radius:0;
+  overflow:visible; /* ensure glow/outline not clipped */
 }
 .task-left,.task-mid,.task-right{display:flex;align-items:center}
 .task-mid{flex:1;justify-content:center}
@@ -191,14 +194,14 @@ button:hover,
 }
 .task-clock{text-align:right;font-size:12px;margin-right:8px}
 .task-clock .date{font-size:11px;color:var(--text-sub)}
-.taskbar-apps{display:flex;gap:4px;align-items:center;overflow:hidden}
+.taskbar-apps{display:flex;gap:4px;align-items:center;overflow:visible}
 .tb-app{
   border-radius:999px;padding:4px 10px;border:1px solid transparent;
   background:rgba(15,23,42,.90);font-size:11px;display:flex;align-items:center;gap:4px;cursor:pointer;
 }
 .tb-app.active{
-  box-shadow:0 0 0 1px #ffffff;
-  border-color:rgba(248,250,252,0.6);
+  box-shadow:0 0 0 2px rgba(74,168,255,0.18), 0 0 12px rgba(74,168,255,0.18);
+  border-color:rgba(74,168,255,0.6);
 }
 
 /* Start menu */
@@ -447,6 +450,9 @@ button:hover,
 <div id="toast"></div>
 
 <script>
+/* -------------------------
+   Utilities and state
+   ------------------------- */
 const $  = (q, root=document) => root.querySelector(q);
 const $$ = (q, root=document) => Array.from(root.querySelectorAll(q));
 
@@ -472,6 +478,17 @@ const OS = {
   }
 };
 
+/* Load persisted glass level if present */
+(function(){
+  try{
+    const v = localStorage.getItem("lp-glass");
+    if(v!==null){
+      const n = Number(v);
+      if(!isNaN(n) && n>0 && n<=1) OS.config.glassLevel = n;
+    }
+  }catch(e){}
+})();
+
 /* Toast + notifications */
 function showToast(msg){
   const t=$("#toast");
@@ -489,7 +506,9 @@ function notify(title,message){
   renderTaskbar();
 }
 
-/* BIOS boot */
+/* -------------------------
+   BIOS boot
+   ------------------------- */
 function startBoot(){
   const bios = $("#bios");
   const bar  = $("#bios-bar-inner");
@@ -545,7 +564,9 @@ function finishBootNoBIOS(){
   notify("Welcome","Liquid Plastic OS 1.x ready.");
 }
 
-/* Lockscreen */
+/* -------------------------
+   Lockscreen
+   ------------------------- */
 let lockInterval=null;
 
 function updateLockTime(){
@@ -585,7 +606,9 @@ function showLockscreen(first=false){
   window.onkeydown=(e)=>{ if(OS.state.locked) unlock(); };
 }
 
-/* Desktop icons */
+/* -------------------------
+   Desktop icons
+   ------------------------- */
 function seedDesktopIcons(){
   OS.state.desktopIcons = [
     {
@@ -631,7 +654,7 @@ function renderDesktopIcons(){
       bodyHTML=`
         <div class="icon-body">
           <div class="folder-grid-preview">
-            ${icon.children.slice(0,4).map(()=>"<div></div>").join("")}
+            ${Array.from({length: Math.min(4, (icon.children||[]).length)}).map(()=>"<div></div>").join("")}
           </div>
         </div>`;
     }
@@ -639,6 +662,7 @@ function renderDesktopIcons(){
 
     if(icon.selected) el.classList.add("selected");
 
+    /* mousedown selection (do not start drag here) */
     el.addEventListener("mousedown",(e)=>{
       if(e.button!==0) return;
       e.stopPropagation();
@@ -650,11 +674,13 @@ function renderDesktopIcons(){
       renderDesktopIcons();
     });
 
+    /* double click to open */
     el.addEventListener("dblclick",()=>{
       if(icon.type==="folder") openAppFolder(icon);
       else if(icon.appId) openApp(icon.appId);
     });
 
+    /* right click context menu */
     el.addEventListener("contextmenu",(e)=>{
       e.preventDefault();
       e.stopPropagation();
@@ -665,13 +691,15 @@ function renderDesktopIcons(){
   });
 }
 
-/* App folder window */
+/* -------------------------
+   App folder window
+   ------------------------- */
 function openAppFolder(folderIcon){
   const root=document.createElement("div");
   root.innerHTML=`
     <h3 style="margin-bottom:6px;">${folderIcon.name}</h3>
     <div style="display:flex;flex-wrap:wrap;gap:6px;">
-      ${folderIcon.children.slice(0,32).map(id=>{
+      ${ (folderIcon.children||[]).slice(0,32).map(id=>{
         const app=OS.state.apps[id];
         return `<button style="min-width:80px;padding:4px 6px;border-radius:8px;border:1px solid rgba(55,65,81,.9);background:rgba(15,23,42,.9);font-size:12px;cursor:pointer;">${app?app.title:id}</button>`;
       }).join("")}
@@ -687,7 +715,9 @@ function openAppFolder(folderIcon){
   });
 }
 
-/* Selection box */
+/* -------------------------
+   Selection box
+   ------------------------- */
 let selStartX=0, selStartY=0, selecting=false;
 function enableSelectionBox(){
   const box=$("#selectBox");
@@ -735,7 +765,9 @@ function enableSelectionBox(){
   });
 }
 
-/* Dragging + folder stacking */
+/* -------------------------
+   Dragging + folder stacking
+   ------------------------- */
 let draggingIcons=false, dragStartX=0, dragStartY=0, iconStartPositions=[];
 function enableIconDragging(){
   document.addEventListener("mousedown",(e)=>{
@@ -743,6 +775,7 @@ function enableIconDragging(){
     const iconEl=e.target.closest(".icon");
     if(!iconEl) return;
 
+    // start drag
     draggingIcons=true;
     dragStartX=e.clientX;
     dragStartY=e.clientY;
@@ -750,6 +783,7 @@ function enableIconDragging(){
     const idx=parseInt(iconEl.dataset.index,10);
     const icon=OS.state.desktopIcons[idx];
 
+    // selection behaviour
     if(!icon.selected){
       OS.state.desktopIcons.forEach(i=>i.selected=false);
       icon.selected=true;
@@ -778,7 +812,7 @@ function enableIconDragging(){
     renderDesktopIcons();
   });
 
-  document.addEventListener("mouseup",()=>{
+  document.addEventListener("mouseup",(e)=>{
     if(!draggingIcons) return;
     draggingIcons=false;
     document.body.style.userSelect="";
@@ -831,7 +865,9 @@ function overlapRect(a,b){
   return a.left<b.right && a.right>b.left && a.top<b.bottom && a.bottom>b.top;
 }
 
-/* Desktop context menu */
+/* -------------------------
+   Desktop context menu
+   ------------------------- */
 function showDesktopContextMenuForIcon(icon,index,x,y){
   const menu=$("#ctxMenu");
   const inner=menu.querySelector(".inner");
@@ -845,6 +881,7 @@ function showDesktopContextMenuForIcon(icon,index,x,y){
   menu.style.top=y+"px";
   menu.style.display="block";
 
+  // ensure clicks inside menu don't close it prematurely
   inner.querySelectorAll(".ctx-item").forEach(item=>{
     item.onclick=()=>{
       const a=item.dataset.act;
@@ -872,7 +909,9 @@ function showDesktopContextMenuForIcon(icon,index,x,y){
   });
 }
 
-/* Window manager */
+/* -------------------------
+   Window manager
+   ------------------------- */
 function createWindow(appId,title,contentNode){
   const win=document.createElement("div");
   win.className="window glass-win hidden";
@@ -1002,7 +1041,9 @@ function enableWindowResize(win,handle){
   });
 }
 
-/* App registry */
+/* -------------------------
+   App registry
+   ------------------------- */
 function registerApp(id,def){OS.state.apps[id]=def;}
 function openApp(id){
   const app=OS.state.apps[id];
@@ -1021,7 +1062,9 @@ function openApp(id){
   return win;
 }
 
-/* Browser */
+/* -------------------------
+   Browser app
+   ------------------------- */
 registerApp("browser",{
   title:"Liquid Plastic Browser",
   createContent(){
@@ -1033,7 +1076,7 @@ registerApp("browser",{
         <input class="browser-url" placeholder="lp://home" />
         <button class="browser-go">Go</button>
       </div>
-      <div class="browser-area"></div>
+      <div class="browser-area" id="lpBrowserArea"></div>
     `;
     setupLPBrowser(root);
     return root;
@@ -1086,7 +1129,9 @@ function setupLPBrowser(root){
   navigate("lp://home");
 }
 
-/* Settings app (fixed, root-scoped) */
+/* -------------------------
+   Settings app (root-scoped)
+   ------------------------- */
 registerApp("settings",{
   title:"Settings",
   createContent(){
@@ -1300,8 +1345,15 @@ function renderAccountPanel(panel){
   };
 }
 
+/* -------------------------
+   Glass panel (persist + correct presets)
+   ------------------------- */
 function renderGlassPanel(panel){
   if(!panel) return;
+
+  // current level 0–1 → slider 0–100
+  const currentPercent = Math.round((OS.config.glassLevel || 0.8) * 100);
+
   panel.innerHTML=`
     <h2>Glass</h2>
     <div class="settings-section">
@@ -1314,7 +1366,7 @@ function renderGlassPanel(panel){
     </div>
     <div class="settings-section">
       <div class="setting-group-title">Custom level</div>
-      <input type="range" min="0" max="100" value="80" class="glass-slider">
+      <input type="range" min="0" max="100" value="${currentPercent}" class="glass-slider">
       <div style="font-size:11px;color:var(--text-sub);margin-top:4px;">
         Affects taskbar, icons, start menu, folders, context menus, notifications.
       </div>
@@ -1330,18 +1382,39 @@ function renderGlassPanel(panel){
     document.documentElement.style.setProperty("--glass-opacity", op.toString());
     document.documentElement.style.setProperty("--glass-border-alpha", borderAlpha.toString());
     document.documentElement.style.setProperty("--icon-glass-opacity", iconOp.toString());
-    OS.config.glassLevel = op;
+    OS.config.glassLevel = op; // persist in memory
+    try{ localStorage.setItem("lp-glass", String(op)); }catch(e){}
+    // update visible elements immediately
+    renderTaskbar();
+    // update any open start/notification/context menu panels
+    const panels = [$("#startMenu .inner"), $("#notifPanel .inner"), $("#ctxMenu .inner")];
+    panels.forEach(p=>{ if(p) p.style.background = `rgba(15,23,42,${op})`; });
   }
 
   slider.oninput = () => {
     const v = Number(slider.value);
     applyGlass(v);
+    updatePresetActive(v);
   };
+
+  function updatePresetActive(v){
+    const buttons = panel.querySelectorAll(".settings-radio-btn[data-preset]");
+    buttons.forEach(b=>b.classList.remove("active"));
+
+    // snap to preset ranges if close
+    if(Math.abs(v-80) <= 6){
+      panel.querySelector('[data-preset="glassy"]')?.classList.add("active");
+    }else if(Math.abs(v-50) <= 6){
+      panel.querySelector('[data-preset="balanced"]')?.classList.add("active");
+    }else if(Math.abs(v-20) <= 6){
+      panel.querySelector('[data-preset="solid"]')?.classList.add("active");
+    }
+  }
 
   panel.querySelectorAll(".settings-radio-btn[data-preset]").forEach(btn=>{
     btn.onclick = () => {
       const preset = btn.dataset.preset;
-      let v = 80;
+      let v = 80; // default mapping: glassy = more transparent
       if (preset === "glassy")   v = 80;
       if (preset === "balanced") v = 50;
       if (preset === "solid")    v = 20;
@@ -1352,11 +1425,16 @@ function renderGlassPanel(panel){
     };
   });
 
-  slider.value = 80;
-  applyGlass(80);
+  // Initialize visual state from saved value
+  slider.value = currentPercent;
+  applyGlass(currentPercent);
+  updatePresetActive(currentPercent);
 }
 
-/* Notes */
+/* -------------------------
+   Notes, Calculator, Recycle, This PC, Store, Terminal, Task Manager
+   (unchanged behavior but registered)
+   ------------------------- */
 registerApp("notes",{title:"Notes",createContent(){
   const root=document.createElement("div");
   root.innerHTML=`<textarea class="notes-area" id="notesArea"></textarea>`;
@@ -1366,7 +1444,6 @@ registerApp("notes",{title:"Notes",createContent(){
   return root;
 }});
 
-/* Calculator */
 registerApp("calculator",{
   title:"Calculator",
   createContent(){
@@ -1441,7 +1518,6 @@ function setupCalculator(root){
   });
 }
 
-/* Recycle bin */
 registerApp("recycle-bin",{
   title:"Recycle Bin",
   createContent(){
@@ -1510,7 +1586,6 @@ function renderRecycleBinList(){
   });
 }
 
-/* This PC */
 registerApp("thispc",{
   title:"This PC",
   createContent(){
@@ -1522,14 +1597,14 @@ registerApp("thispc",{
         <div class="thispc-nav-item" data-view="storage">Storage</div>
         <div class="thispc-nav-item" data-view="apps">Apps</div>
       </div>
-      <div class="thispc-main"></div>
+      <div class="thispc-main" id="thispc-main"></div>
     `;
     setupThisPC(root);
     return root;
   }
 });
 function setupThisPC(root){
-  const main=root.querySelector(".thispc-main");
+  const main=root.querySelector("#thispc-main");
   const items=$$(".thispc-nav-item",root);
   items.forEach(it=>{
     it.onclick=()=>{
@@ -1579,7 +1654,6 @@ function renderThisPCView(view,main){
   }
 }
 
-/* Store */
 registerApp("store",{
   title:"Store",
   createContent(){
@@ -1669,7 +1743,6 @@ function uninstallStoreApp(id){
   if(OS.state.startMenuOpen) renderStartMenuContent();
 }
 
-/* Terminal */
 registerApp("terminal",{
   title:"Terminal",
   createContent(){
@@ -1689,7 +1762,6 @@ Liquid Plastic Shell 1.x
   }
 });
 
-/* Task Manager */
 registerApp("taskmgr",{
   title:"Task Manager",
   createContent(){
@@ -1742,7 +1814,9 @@ function renderTaskManagerContent(root){
   });
 }
 
-/* Taskbar + clock */
+/* -------------------------
+   Taskbar + clock
+   ------------------------- */
 function renderTaskbar(){
   const bar=$("#taskbar");
   if(!bar) return;
@@ -1820,7 +1894,9 @@ function updateClock(){
 }
 setInterval(updateClock,30000);
 
-/* Notifications panel */
+/* -------------------------
+   Notifications panel
+   ------------------------- */
 function renderNotifications(){
   if(!OS.state.bootDone) return;
   const panel=$("#notifPanel .inner");
@@ -1874,7 +1950,9 @@ function toggleNotifPanel(force){
   }
 }
 
-/* Start menu + pinned apps */
+/* -------------------------
+   Start menu + pinned apps
+   ------------------------- */
 let pinnedApps=["thispc","browser","settings","notes","store","terminal","calculator","recycle-bin"];
 let currentDraggedAppId=null;
 
@@ -1902,6 +1980,7 @@ function renderStartMenuContent(){
     </div>
   `;
   const grid=$("#startGrid");
+  grid.innerHTML="";
   pinnedApps.forEach(id=>{
     const app=OS.state.apps[id];
     if(!app) return;
@@ -2001,13 +2080,17 @@ if(desktopEl){
   });
 }
 
-/* Minimize all windows */
+/* -------------------------
+   Minimize all windows
+   ------------------------- */
 function minimizeAllWindows(){
   OS.state.windows.forEach(w=>w.style.display="none");
   renderTaskbar();
 }
 
-/* Global auto-close menus */
+/* -------------------------
+   Global auto-close menus (don't close when clicking inside ctxMenu)
+   ------------------------- */
 document.addEventListener("mousedown",(e)=>{
   if(!e.target.closest("#startMenu") && !e.target.closest("#taskbar")){
     toggleStartMenu(false);
@@ -2015,10 +2098,14 @@ document.addEventListener("mousedown",(e)=>{
   if(!e.target.closest("#notifPanel") && !e.target.closest("#taskbar")){
     toggleNotifPanel(false);
   }
-  $("#ctxMenu").style.display="none";
+  if(!e.target.closest("#ctxMenu")){
+    $("#ctxMenu").style.display="none";
+  }
 });
 
-/* Taskbar / Start / app right-click */
+/* -------------------------
+   Taskbar / Start / app right-click
+   ------------------------- */
 document.addEventListener("contextmenu",(e)=>{
   const iconEl=e.target.closest(".icon");
   if(iconEl) return; // desktop icons handled separately
@@ -2076,17 +2163,28 @@ function showTaskbarAppContextMenu(tbBtn,x,y){
   };
 }
 
-/* Init desktop */
+/* -------------------------
+   Init desktop
+   ------------------------- */
 function initDesktop(){
   seedDesktopIcons();
   renderDesktopIcons();
   enableSelectionBox();
   enableIconDragging();
   renderTaskbar();
+  // apply persisted glass level to UI on init
+  const v = Math.round((OS.config.glassLevel||0.8)*100);
+  document.documentElement.style.setProperty("--glass-opacity", String(OS.config.glassLevel));
+  document.documentElement.style.setProperty("--glass-border-alpha", String(0.3 + 0.4*OS.config.glassLevel));
+  document.documentElement.style.setProperty("--icon-glass-opacity", String(0.5 + 0.5*OS.config.glassLevel));
 }
 
-/* DOM ready */
+/* -------------------------
+   DOM ready
+   ------------------------- */
 document.addEventListener("DOMContentLoaded", startBoot);
+
+/* End of script */
 </script>
 </body>
 </html>
