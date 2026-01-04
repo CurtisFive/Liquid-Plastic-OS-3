@@ -28,7 +28,34 @@ body{
   overflow:hidden;
 }
 
-/* Derived glass vars */
+/* Neon hover glow for all primary buttons */
+button,
+.task-btn,
+.theme-btn,
+.settings-wall-btn,
+.settings-accent-btn,
+.settings-radio-btn,
+.start-tile,
+.tb-app,
+.win-btn {
+  transition: box-shadow .15s, background .15s, border-color .15s, transform .08s;
+}
+button:hover,
+.task-btn:hover,
+.theme-btn:hover,
+.settings-wall-btn:hover,
+.settings-accent-btn:hover,
+.settings-radio-btn:hover,
+.start-tile:hover,
+.tb-app:hover,
+.win-btn:hover {
+  box-shadow:0 0 16px rgba(59,130,246,0.9);
+  border-color:var(--accent);
+  background:rgba(37,99,235,0.25);
+  transform:translateY(-1px);
+}
+
+/* Glass helpers */
 .glass-ui{
   background:rgba(15,23,42,var(--glass-opacity));
   border-radius:var(--radius);
@@ -145,7 +172,7 @@ body{
 .ctx-item{padding:6px 10px;color:var(--text-main);cursor:pointer;white-space:nowrap;}
 .ctx-item:hover{background:var(--accent);color:#020617}
 
-/* Taskbar */
+/* Taskbar – flat, not pill */
 #taskbar{
   position:fixed;left:0;right:0;bottom:0;height:46px;padding:4px 10px;
   display:flex;align-items:center;gap:8px;z-index:800;
@@ -153,6 +180,7 @@ body{
   border-top:1px solid rgba(148,163,184,var(--glass-border-alpha));
   backdrop-filter:blur(20px) saturate(180%);
   -webkit-backdrop-filter:blur(20px) saturate(180%);
+  border-radius:0;
 }
 .task-left,.task-mid,.task-right{display:flex;align-items:center}
 .task-mid{flex:1;justify-content:center}
@@ -694,7 +722,7 @@ function enableSelectionBox(){
     icons.forEach(el=>{
       const rect=el.getBoundingClientRect();
       const overlap=rect.left < x+w && rect.right > x && rect.top < y+h && rect.bottom > y;
-      const idx=parseInt(el.dataset.index);
+      const idx=parseInt(el.dataset.index,10);
       OS.state.desktopIcons[idx].selected=overlap;
     });
     renderDesktopIcons();
@@ -714,19 +742,27 @@ function enableIconDragging(){
     if(e.button!==0) return;
     const iconEl=e.target.closest(".icon");
     if(!iconEl) return;
+
     draggingIcons=true;
     dragStartX=e.clientX;
     dragStartY=e.clientY;
-    const idx=parseInt(iconEl.dataset.index);
+
+    const idx=parseInt(iconEl.dataset.index,10);
     const icon=OS.state.desktopIcons[idx];
+
     if(!icon.selected){
       OS.state.desktopIcons.forEach(i=>i.selected=false);
       icon.selected=true;
       renderDesktopIcons();
     }
+
     iconStartPositions=OS.state.desktopIcons.map((i,index)=>({
-      index,x:i.x,y:i.y,selected:i.selected
+      index,
+      x:i.x,
+      y:i.y,
+      selected:i.selected
     })).filter(i=>i.selected);
+
     document.body.style.userSelect="none";
   });
 
@@ -742,10 +778,11 @@ function enableIconDragging(){
     renderDesktopIcons();
   });
 
-  document.addEventListener("mouseup",(e)=>{
+  document.addEventListener("mouseup",()=>{
     if(!draggingIcons) return;
     draggingIcons=false;
     document.body.style.userSelect="";
+
     const grid=OS.config.desktopGrid;
 
     const sel=OS.state.desktopIcons.filter(i=>i.selected);
@@ -996,7 +1033,7 @@ registerApp("browser",{
         <input class="browser-url" placeholder="lp://home" />
         <button class="browser-go">Go</button>
       </div>
-      <div class="browser-area" id="lpBrowserArea"></div>
+      <div class="browser-area"></div>
     `;
     setupLPBrowser(root);
     return root;
@@ -1049,7 +1086,7 @@ function setupLPBrowser(root){
   navigate("lp://home");
 }
 
-/* Settings */
+/* Settings app (fixed, root-scoped) */
 registerApp("settings",{
   title:"Settings",
   createContent(){
@@ -1063,18 +1100,36 @@ registerApp("settings",{
         <div class="settings-item" data-panel="glass">Glass</div>
       </div>
       <div class="settings-main">
-        <div id="settings-panel-appearance" class="settings-panel"></div>
-        <div id="settings-panel-system" class="settings-panel"></div>
-        <div id="settings-panel-account" class="settings-panel"></div>
-        <div id="settings-panel-glass" class="settings-panel"></div>
+        <div class="settings-panel" data-panel-id="appearance"></div>
+        <div class="settings-panel" data-panel-id="system"></div>
+        <div class="settings-panel" data-panel-id="account"></div>
+        <div class="settings-panel" data-panel-id="glass"></div>
       </div>
     `;
     setupSettings(root);
     return root;
   }
 });
+
 function setupSettings(root){
-  const items=$$(".settings-item",root);
+  const items=Array.from(root.querySelectorAll(".settings-item"));
+  const panels={
+    appearance: root.querySelector('.settings-panel[data-panel-id="appearance"]'),
+    system:     root.querySelector('.settings-panel[data-panel-id="system"]'),
+    account:    root.querySelector('.settings-panel[data-panel-id="account"]'),
+    glass:      root.querySelector('.settings-panel[data-panel-id="glass"]')
+  };
+
+  renderAppearancePanel(panels.appearance);
+  renderSystemPanel(panels.system);
+  renderAccountPanel(panels.account);
+  renderGlassPanel(panels.glass);
+
+  function showSettingsPanel(name){
+    Object.values(panels).forEach(p=>{ if(p) p.style.display="none"; });
+    if(panels[name]) panels[name].style.display="block";
+  }
+
   items.forEach(it=>{
     it.onclick=()=>{
       items.forEach(i=>i.classList.remove("settings-item-active"));
@@ -1082,20 +1137,12 @@ function setupSettings(root){
       showSettingsPanel(it.dataset.panel);
     };
   });
-  renderAppearancePanel();
-  renderSystemPanel();
-  renderAccountPanel();
-  renderGlassPanel();
+
   items[0].classList.add("settings-item-active");
   showSettingsPanel("appearance");
 }
-function showSettingsPanel(name){
-  $$(".settings-panel").forEach(p=>p.style.display="none");
-  const panel=$("#settings-panel-"+name);
-  if(panel) panel.style.display="block";
-}
-function renderAppearancePanel(){
-  const panel=$("#settings-panel-appearance");
+
+function renderAppearancePanel(panel){
   if(!panel) return;
   panel.innerHTML=`
     <h2>Appearance</h2>
@@ -1137,7 +1184,7 @@ function renderAppearancePanel(){
   `;
   const desktopRoot=$("#desktopRoot");
 
-  $$("#settings-panel-appearance .settings-wall-btn").forEach(btn=>{
+  panel.querySelectorAll(".settings-wall-btn").forEach(btn=>{
     btn.onclick=()=>{
       const w=btn.dataset.wall;
       if(desktopRoot){
@@ -1148,39 +1195,42 @@ function renderAppearancePanel(){
         if(w==="mono") desktopRoot.style.background= "radial-gradient(circle at top,#111827,#020617)";
       }
       if(w==="upload") showToast("Upload wallpaper not implemented yet.");
-      $$("#settings-panel-appearance .settings-wall-btn").forEach(x=>x.classList.remove("active"));
+      panel.querySelectorAll(".settings-wall-btn").forEach(x=>x.classList.remove("active"));
       btn.classList.add("active");
     };
   });
-  $$("#settings-panel-appearance .settings-accent-btn").forEach(btn=>{
+
+  panel.querySelectorAll(".settings-accent-btn").forEach(btn=>{
     btn.onclick=()=>{
       const c=btn.dataset.accent;
       document.documentElement.style.setProperty("--accent",c);
-      $$("#settings-panel-appearance .settings-accent-btn").forEach(x=>x.classList.remove("active"));
+      panel.querySelectorAll(".settings-accent-btn").forEach(x=>x.classList.remove("active"));
       btn.classList.add("active");
     };
   });
-  $$("#settings-panel-appearance .settings-radio-btn[data-corners]").forEach(btn=>{
+
+  panel.querySelectorAll(".settings-radio-btn[data-corners]").forEach(btn=>{
     btn.onclick=()=>{
       const v=btn.dataset.corners;
       document.documentElement.style.setProperty("--radius", v==="rounded" ? "18px" : "4px");
-      $$("#settings-panel-appearance .settings-radio-btn[data-corners]").forEach(x=>x.classList.remove("active"));
+      panel.querySelectorAll(".settings-radio-btn[data-corners]").forEach(x=>x.classList.remove("active"));
       btn.classList.add("active");
     };
   });
-  $$("#settings-panel-appearance .settings-radio-btn[data-clock]").forEach(btn=>{
+
+  panel.querySelectorAll(".settings-radio-btn[data-clock]").forEach(btn=>{
     btn.onclick=()=>{
       const v=btn.dataset.clock;
       OS.config.clock24 = (v==="24");
       updateClock();
       updateLockTime();
-      $$("#settings-panel-appearance .settings-radio-btn[data-clock]").forEach(x=>x.classList.remove("active"));
+      panel.querySelectorAll(".settings-radio-btn[data-clock]").forEach(x=>x.classList.remove("active"));
       btn.classList.add("active");
     };
   });
 }
-function renderSystemPanel(){
-  const panel=$("#settings-panel-system");
+
+function renderSystemPanel(panel){
   if(!panel) return;
   panel.innerHTML=`
     <h2>System</h2>
@@ -1189,13 +1239,15 @@ function renderSystemPanel(){
         <div class="settings-toggle" id="sysTaskbarAuto"><div class="settings-toggle-knob"></div></div>
         <div>Taskbar auto-hide</div>
       </div>
-      <div style="font-size:11px;color:var(--text-sub);margin-top:4px;">Hide taskbar until cursor is at the bottom edge. (Visual only in this build.)</div>
+      <div style="font-size:11px;color:var(--text-sub);margin-top:4px;">
+        Hide taskbar until cursor is at the bottom edge. (Visual only in this build.)
+      </div>
     </div>
     <div class="settings-section" style="margin-top:16px;font-size:11px;color:var(--text-sub);">
       More system settings can go here later.
     </div>
   `;
-  const toggle=$("#sysTaskbarAuto");
+  const toggle=panel.querySelector("#sysTaskbarAuto");
   function updateToggle(){toggle.classList.toggle("on",OS.config.taskbarAutohide);}
   toggle.onclick=()=>{
     OS.config.taskbarAutohide=!OS.config.taskbarAutohide;
@@ -1205,8 +1257,8 @@ function renderSystemPanel(){
   };
   updateToggle();
 }
-function renderAccountPanel(){
-  const panel=$("#settings-panel-account");
+
+function renderAccountPanel(panel){
   if(!panel) return;
   panel.innerHTML=`
     <h2>Account</h2>
@@ -1242,13 +1294,13 @@ function renderAccountPanel(){
       </div>
     </div>
   `;
-  $("#accPwOnUnlock").onclick=()=>{
+  panel.querySelector("#accPwOnUnlock").onclick=()=>{
     showToast("Passwords are UI-only in this build.");
     notify("Account","Password options are UI-only in this build.");
   };
 }
-function renderGlassPanel(){
-  const panel=$("#settings-panel-glass");
+
+function renderGlassPanel(panel){
   if(!panel) return;
   panel.innerHTML=`
     <h2>Glass</h2>
@@ -1262,12 +1314,14 @@ function renderGlassPanel(){
     </div>
     <div class="settings-section">
       <div class="setting-group-title">Custom level</div>
-      <input type="range" min="0" max="100" value="80" class="glass-slider" id="glassSlider">
+      <input type="range" min="0" max="100" value="80" class="glass-slider">
       <div style="font-size:11px;color:var(--text-sub);margin-top:4px;">
         Affects taskbar, icons, start menu, folders, context menus, notifications.
       </div>
     </div>
   `;
+
+  const slider = panel.querySelector(".glass-slider");
 
   function applyGlass(level){
     const op = Math.max(0.1, level / 100);
@@ -1279,14 +1333,12 @@ function renderGlassPanel(){
     OS.config.glassLevel = op;
   }
 
-  const slider = $("#glassSlider");
-
   slider.oninput = () => {
     const v = Number(slider.value);
     applyGlass(v);
   };
 
-  $$("#settings-panel-glass .settings-radio-btn[data-preset]").forEach(btn=>{
+  panel.querySelectorAll(".settings-radio-btn[data-preset]").forEach(btn=>{
     btn.onclick = () => {
       const preset = btn.dataset.preset;
       let v = 80;
@@ -1295,7 +1347,7 @@ function renderGlassPanel(){
       if (preset === "solid")    v = 20;
       slider.value = v;
       applyGlass(v);
-      $$("#settings-panel-glass .settings-radio-btn[data-preset]").forEach(x=>x.classList.remove("active"));
+      panel.querySelectorAll(".settings-radio-btn[data-preset]").forEach(x=>x.classList.remove("active"));
       btn.classList.add("active");
     };
   });
@@ -1470,14 +1522,14 @@ registerApp("thispc",{
         <div class="thispc-nav-item" data-view="storage">Storage</div>
         <div class="thispc-nav-item" data-view="apps">Apps</div>
       </div>
-      <div class="thispc-main" id="thispc-main"></div>
+      <div class="thispc-main"></div>
     `;
     setupThisPC(root);
     return root;
   }
 });
 function setupThisPC(root){
-  const main=root.querySelector("#thispc-main");
+  const main=root.querySelector(".thispc-main");
   const items=$$(".thispc-nav-item",root);
   items.forEach(it=>{
     it.onclick=()=>{
@@ -1695,7 +1747,6 @@ function renderTaskbar(){
   const bar=$("#taskbar");
   if(!bar) return;
   bar.innerHTML="";
-  bar.className="glass-ui";
 
   const left=document.createElement("div");
   left.className="task-left";
@@ -1970,7 +2021,7 @@ document.addEventListener("mousedown",(e)=>{
 /* Taskbar / Start / app right-click */
 document.addEventListener("contextmenu",(e)=>{
   const iconEl=e.target.closest(".icon");
-  if(iconEl) return;
+  if(iconEl) return; // desktop icons handled separately
 
   const tbBtn=e.target.closest(".tb-app");
   const tb=e.target.closest("#taskbar");
