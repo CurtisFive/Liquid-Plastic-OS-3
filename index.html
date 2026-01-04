@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<title>Liquid Plastic OS 1.x – Stable Build</title>
+<title>Liquid Plastic OS 1.x</title>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <style>
 :root{
@@ -11,12 +11,10 @@
   --text-main:#f9fafb;
   --text-sub:#9ca3af;
 
-  /* Glass knobs */
   --glass-opacity:0.80;
   --glass-border-alpha:0.50;
-  --icon-glass-opacity:0.72;
+  --icon-glass-opacity:0.80;
 
-  /* Corner radius (for Appearance setting) */
   --radius:18px;
 }
 
@@ -28,15 +26,25 @@ body{
   background:var(--bg-gradient);
   color:var(--text-main);
   overflow:hidden;
-  user-select:none;
 }
 
 /* Derived glass vars */
-:root{
-  --ui-glass-bg:rgba(15,23,42,var(--glass-opacity));
-  --ui-glass-border:rgba(148,163,184,var(--glass-border-alpha));
-  --ui-glass-blur:20px;
-  --icon-glass-bg:rgba(15,23,42,var(--icon-glass-opacity));
+.glass-ui{
+  background:rgba(15,23,42,var(--glass-opacity));
+  border-radius:var(--radius);
+  border:1px solid rgba(148,163,184,var(--glass-border-alpha));
+  backdrop-filter:blur(20px) saturate(180%);
+  -webkit-backdrop-filter:blur(20px) saturate(180%);
+  box-shadow:0 18px 50px rgba(0,0,0,.80);
+}
+.glass-win{
+  position:absolute;
+  background:rgba(15,23,42,0.88);
+  border-radius:var(--radius);
+  border:1px solid rgba(148,163,184,0.55);
+  backdrop-filter:blur(22px) saturate(180%);
+  -webkit-backdrop-filter:blur(22px) saturate(180%);
+  box-shadow:0 22px 60px rgba(0,0,0,.80);
 }
 
 /* BIOS */
@@ -55,36 +63,24 @@ body{
 }
 #bios .hint{margin-top:14px;color:#9ca3af}
 
-/* Desktop + background glow */
-.desktop{position:fixed;inset:0;background:var(--bg-gradient);overflow:hidden}
-.glow{position:absolute;border-radius:999px;filter:blur(60px);opacity:.6;mix-blend-mode:screen}
+/* Desktop */
+.desktop{
+  position:fixed;inset:0;
+  background:var(--bg-gradient);
+  overflow:hidden;
+}
+.glow{
+  position:absolute;border-radius:999px;filter:blur(60px);opacity:.6;mix-blend-mode:screen;
+}
 .g1{width:40vw;height:40vw;background:radial-gradient(circle,#38bdf8,transparent 60%);top:-10%;left:-10%}
 .g2{width:32vw;height:32vw;background:radial-gradient(circle,#fb7185,transparent 60%);bottom:-12%;right:-5%}
 .g3{width:26vw;height:26vw;background:radial-gradient(circle,#5eead4,transparent 60%);bottom:10%;left:15%}
 
-/* Glass helpers */
-.glass-win{
-  position:absolute;
-  background:rgba(15,23,42,0.88);
-  border-radius:var(--radius);
-  border:1px solid rgba(148,163,184,0.55);
-  backdrop-filter:blur(22px) saturate(180%);
-  -webkit-backdrop-filter:blur(22px) saturate(180%);
-  box-shadow:0 22px 60px rgba(0,0,0,.80);
-}
-.glass-ui{
-  background:var(--ui-glass-bg);
-  border-radius:var(--radius);
-  border:1px solid var(--ui-glass-border);
-  backdrop-filter:blur(var(--ui-glass-blur)) saturate(180%);
-  -webkit-backdrop-filter:blur(var(--ui-glass-blur)) saturate(180%);
-  box-shadow:0 18px 50px rgba(0,0,0,.80);
-}
-
 /* Lockscreen */
 #lockscreen{
   position:fixed;inset:0;display:flex;align-items:center;justify-content:center;
-  z-index:1000;backdrop-filter:blur(26px);-webkit-backdrop-filter:blur(26px);pointer-events:none;opacity:0;transition:opacity .25s;
+  z-index:1000;backdrop-filter:blur(26px);-webkit-backdrop-filter:blur(26px);
+  pointer-events:none;opacity:0;transition:opacity .25s;
 }
 #lockscreen.visible{pointer-events:auto;opacity:1;}
 .lock-panel{width:420px;padding:32px;text-align:center}
@@ -106,7 +102,7 @@ body{
 .lock-user-sub{font-size:12px;color:var(--text-sub)}
 #lockHint{margin-top:10px;font-size:12px;color:var(--text-sub)}
 
-/* Desktop icons + folders */
+/* Desktop icons */
 #desktopIcons{position:fixed;inset:0;padding:8px;pointer-events:none}
 .icon{
   position:absolute;width:76px;text-align:center;font-size:11px;pointer-events:auto;cursor:pointer;
@@ -118,7 +114,7 @@ body{
 }
 .icon-body::after{
   content:"";position:absolute;inset:2px;border-radius:inherit;
-  background:var(--icon-glass-bg);
+  background:rgba(15,23,42,var(--icon-glass-opacity));
 }
 .icon-label{color:var(--text-main);}
 .icon.selected .icon-body{outline:2px solid var(--accent)}
@@ -145,9 +141,7 @@ body{
 #ctxMenu{
   position:fixed;min-width:160px;display:none;z-index:1200;font-size:12px;
 }
-#ctxMenu .inner{
-  padding:4px 0;border-radius:10px;
-}
+#ctxMenu .inner{padding:4px 0;border-radius:10px;}
 .ctx-item{padding:6px 10px;color:var(--text-main);cursor:pointer;white-space:nowrap;}
 .ctx-item:hover{background:var(--accent);color:#020617}
 
@@ -155,11 +149,10 @@ body{
 #taskbar{
   position:fixed;left:0;right:0;bottom:0;height:46px;padding:4px 10px;
   display:flex;align-items:center;gap:8px;z-index:800;
-  background:var(--ui-glass-bg);
-  border-top:1px solid var(--ui-glass-border);
-  backdrop-filter:blur(var(--ui-glass-blur)) saturate(180%);
-  -webkit-backdrop-filter:blur(var(--ui-glass-blur)) saturate(180%);
-  border-radius:0;
+  background:rgba(15,23,42,var(--glass-opacity));
+  border-top:1px solid rgba(148,163,184,var(--glass-border-alpha));
+  backdrop-filter:blur(20px) saturate(180%);
+  -webkit-backdrop-filter:blur(20px) saturate(180%);
 }
 .task-left,.task-mid,.task-right{display:flex;align-items:center}
 .task-mid{flex:1;justify-content:center}
@@ -167,12 +160,6 @@ body{
   border-radius:999px;border:1px solid rgba(148,163,184,.5);
   padding:6px 12px;background:rgba(15,23,42,.94);color:var(--text-main);
   font-size:12px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;
-  transition:box-shadow .15s,background .15s,border-color .15s;
-}
-.task-btn:hover{
-  background:rgba(37,99,235,0.25);
-  box-shadow:0 0 16px rgba(59,130,246,0.75);
-  border-color:var(--accent);
 }
 .task-clock{text-align:right;font-size:12px;margin-right:8px}
 .task-clock .date{font-size:11px;color:var(--text-sub)}
@@ -180,7 +167,6 @@ body{
 .tb-app{
   border-radius:999px;padding:4px 10px;border:1px solid transparent;
   background:rgba(15,23,42,.90);font-size:11px;display:flex;align-items:center;gap:4px;cursor:pointer;
-  position:relative;
 }
 .tb-app.active{
   box-shadow:0 0 0 1px #ffffff;
@@ -191,20 +177,13 @@ body{
 #startMenu{
   position:fixed;left:10px;bottom:58px;width:360px;max-height:460px;display:none;z-index:850;
 }
-#startMenu .inner{padding:10px;border-radius:18px;position:relative;}
+#startMenu .inner{padding:10px;border-radius:18px;}
 .start-header{display:flex;justify-content:space-between;align-items:flex-start;font-size:12px;color:var(--text-sub);margin-bottom:6px;}
 .start-account{
   display:flex;align-items:center;gap:8px;
-  padding:6px 10px;border-radius:18px 18px 12px 18px;
+  padding:6px 10px;border-radius:18px;
   background:rgba(15,23,42,0.9);border:1px solid rgba(148,163,184,0.7);
   cursor:pointer;
-  transition:box-shadow .15s,background .15s,border-color .15s,transform .08s;
-}
-.start-account:hover{
-  background:rgba(37,99,235,0.25);
-  box-shadow:0 0 16px rgba(59,130,246,0.75);
-  border-color:var(--accent);
-  transform:translateY(-1px);
 }
 .start-account-avatar{
   width:26px;height:26px;border-radius:999px;
@@ -214,40 +193,17 @@ body{
 .start-account-text{display:flex;flex-direction:column;line-height:1.15;}
 .start-account-name{font-size:12px;color:var(--text-main);}
 .start-account-sub{font-size:11px;color:var(--text-sub);}
-.start-header-right{
-  align-self:flex-end;font-size:11px;
-}
+.start-header-right{align-self:flex-end;font-size:11px;}
 .start-header-right button{
-  border:none;
-  background:rgba(15,23,42,0.94);
-  color:var(--text-main);
-  border-radius:999px;
-  border:1px solid rgba(148,163,184,.5);
-  padding:4px 10px;
-  cursor:pointer;
-  font-size:11px;
-  display:inline-flex;
-  align-items:center;
-  gap:6px;
-  transition:box-shadow .15s,background .15s,border-color .15s;
-}
-.start-header-right button:hover{
-  background:rgba(37,99,235,0.25);
-  box-shadow:0 0 16px rgba(59,130,246,0.75);
-  border-color:var(--accent);
+  border-radius:999px;border:1px solid rgba(148,163,184,.5);
+  padding:4px 10px;background:rgba(15,23,42,0.94);color:var(--text-main);
+  font-size:11px;cursor:pointer;
 }
 .start-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:10px}
 .start-tile{
   border-radius:16px;padding:6px 4px;text-align:center;font-size:11px;
   background:rgba(15,23,42,.9);border:1px solid rgba(148,163,184,.5);
   color:var(--text-main);cursor:pointer;display:flex;flex-direction:column;gap:4px;align-items:center;
-  transition:box-shadow .15s,background .15s,border-color .15s,transform .08s;
-}
-.start-tile:hover{
-  background:rgba(37,99,235,0.25);
-  box-shadow:0 0 16px rgba(59,130,246,0.75);
-  border-color:var(--accent);
-  transform:translateY(-1px);
 }
 .start-icon{
   width:26px;height:26px;border-radius:999px;
@@ -255,23 +211,9 @@ body{
 }
 .start-footer{display:flex;justify-content:flex-end;gap:6px;margin-top:8px;font-size:11px}
 .start-footer button{
-  border:none;
-  background:rgba(15,23,42,0.94);
-  color:var(--text-main);
-  border-radius:999px;
-  border:1px solid rgba(148,163,184,.5);
-  padding:4px 10px;
-  cursor:pointer;
-  font-size:11px;
-  display:inline-flex;
-  align-items:center;
-  gap:6px;
-  transition:box-shadow .15s,background .15s,border-color .15s;
-}
-.start-footer button:hover{
-  background:rgba(37,99,235,0.25);
-  box-shadow:0 0 16px rgba(59,130,246,0.75);
-  border-color:var(--accent);
+  border-radius:999px;border:1px solid rgba(148,163,184,.5);
+  padding:4px 10px;background:rgba(15,23,42,0.94);color:var(--text-main);
+  font-size:11px;cursor:pointer;
 }
 
 /* Notifications panel */
@@ -307,7 +249,6 @@ body{
   width:24px;height:18px;border-radius:4px;border:1px solid rgba(148,163,184,.5);
   background:rgba(15,23,42,.9);color:var(--text-main);font-size:12px;cursor:pointer;
 }
-.win-btn:hover{background:var(--accent);color:#020617;border-color:var(--accent)}
 .win-btn[data-close]:hover{background:#E81123;border-color:#E81123;color:#fff;}
 .win-body{flex:1;padding:8px 10px;font-size:13px;overflow:auto}
 .window-resize-handle{
@@ -319,10 +260,9 @@ body{
   cursor:nwse-resize;
   border-radius:3px;
   background:linear-gradient(135deg,rgba(148,163,184,0.4),transparent);
-  opacity:0.7;
 }
 
-/* LP Browser */
+/* Browser */
 .browser-app{display:flex;flex-direction:column;height:100%}
 .browser-bar{display:flex;align-items:center;gap:4px;margin-bottom:6px;font-size:12px;}
 .browser-tab{
@@ -332,7 +272,6 @@ body{
   border:1px solid rgba(148,163,184,0.7);
   font-size:11px;
 }
-.browser-tab span{opacity:0.9;}
 .browser-url{
   flex:1;height:26px;border-radius:999px;border:1px solid rgba(75,85,99,.95);
   background:rgba(15,23,42,.95);color:var(--text-main);padding:0 10px;font-size:12px;outline:none;
@@ -346,7 +285,7 @@ body{
   color:#e5e7eb;padding:10px;font-family:system-ui,sans-serif;font-size:13px;overflow:auto;
 }
 
-/* Settings app */
+/* Settings */
 .settings-app{display:flex;height:100%;font-size:12px}
 .settings-sidebar{
   width:160px;border-right:1px solid rgba(55,65,81,.9);padding:8px 6px;display:flex;flex-direction:column;gap:4px;
@@ -371,24 +310,15 @@ body{
   padding:4px 10px;border-radius:999px;border:1px solid rgba(75,85,99,0.9);
   background:rgba(15,23,42,0.95);color:var(--text-main);font-size:12px;cursor:pointer;
 }
-.settings-radio-btn.active,
-.settings-accent-btn.active,
-.settings-wall-btn.active,
-.theme-btn.active{
-  border-color:var(--accent);background:rgba(37,99,235,0.35);
-}
-
 .settings-toggle{
   width:30px;height:16px;border-radius:999px;border:1px solid rgba(75,85,99,0.9);
   cursor:pointer;position:relative;background:rgba(15,23,42,0.95);
 }
 .settings-toggle-knob{
-  position:absolute;width:14px;height:14px;border-radius:999px;background:#e5e7eb;top:0;left:0;transform:translate(0,0);
-  transition:transform .12s;
+  position:absolute;width:14px;height:14px;border-radius:999px;background:#e5e7eb;top:0;left:0;
+  transform:translate(0,0);transition:transform .12s;
 }
-.settings-toggle.on .settings-toggle-knob{
-  transform:translate(14px,0);
-}
+.settings-toggle.on .settings-toggle-knob{transform:translate(14px,0);}
 .glass-slider{width:100%;margin-top:6px;}
 
 /* Notes */
@@ -427,9 +357,7 @@ body{
 }
 .store-card-title{font-weight:600;font-size:12px;margin-bottom:2px;}
 .store-card-desc{font-size:11px;color:var(--text-sub);margin-bottom:4px;}
-.store-card-buttons{
-  display:flex;gap:6px;margin-top:4px;
-}
+.store-card-buttons{display:flex;gap:6px;margin-top:4px;}
 
 /* Toast */
 #toast{
@@ -539,7 +467,6 @@ function startBoot(){
   const bar  = $("#bios-bar-inner");
 
   if (!bios || !bar) {
-    // Fallback: go straight to desktop + lock
     finishBootNoBIOS();
     return;
   }
@@ -555,7 +482,6 @@ function startBoot(){
     bios.style.opacity = "0";
     setTimeout(() => {
       bios.remove();
-      // Initialize desktop once BIOS is gone
       initDesktop();
       showLockscreen(true);
       notify("Welcome","Liquid Plastic OS 1.x ready.");
@@ -584,7 +510,6 @@ function startBoot(){
   window.addEventListener("keydown", skip, { once: true });
   window.addEventListener("click",   skip, { once: true });
 }
-
 function finishBootNoBIOS(){
   OS.state.bootDone = true;
   initDesktop();
@@ -610,7 +535,6 @@ function updateLockTime(){
     ld.textContent=now.toLocaleDateString(undefined,opts);
   }
 }
-
 function showLockscreen(first=false){
   OS.state.locked=true;
   const ls=$("#lockscreen");
@@ -635,8 +559,32 @@ function showLockscreen(first=false){
 
 /* Desktop icons */
 function seedDesktopIcons(){
-  // You can add default shortcuts here if you like
-  OS.state.desktopIcons=[];
+  OS.state.desktopIcons = [
+    {
+      id:"shortcut-thispc",
+      name:"This PC",
+      appId:"thispc",
+      x:40, y:40,
+      selected:false,
+      type:"shortcut"
+    },
+    {
+      id:"shortcut-settings",
+      name:"Settings",
+      appId:"settings",
+      x:40, y:130,
+      selected:false,
+      type:"shortcut"
+    },
+    {
+      id:"shortcut-recycle",
+      name:"Recycle Bin",
+      appId:"recycle-bin",
+      x:40, y:220,
+      selected:false,
+      type:"shortcut"
+    }
+  ];
 }
 function renderDesktopIcons(){
   const layer=$("#desktopIcons");
@@ -663,7 +611,6 @@ function renderDesktopIcons(){
 
     if(icon.selected) el.classList.add("selected");
 
-    // select on click (supports multi-select)
     el.addEventListener("mousedown",(e)=>{
       if(e.button!==0) return;
       e.stopPropagation();
@@ -675,13 +622,11 @@ function renderDesktopIcons(){
       renderDesktopIcons();
     });
 
-    // open on double-click
     el.addEventListener("dblclick",()=>{
       if(icon.type==="folder") openAppFolder(icon);
       else if(icon.appId) openApp(icon.appId);
     });
 
-    // context menu
     el.addEventListener("contextmenu",(e)=>{
       e.preventDefault();
       e.stopPropagation();
@@ -714,7 +659,7 @@ function openAppFolder(folderIcon){
   });
 }
 
-/* Selection box (ignore clicks on windows) */
+/* Selection box */
 let selStartX=0, selStartY=0, selecting=false;
 function enableSelectionBox(){
   const box=$("#selectBox");
@@ -803,7 +748,6 @@ function enableIconDragging(){
     document.body.style.userSelect="";
     const grid=OS.config.desktopGrid;
 
-    // folder stacking
     const sel=OS.state.desktopIcons.filter(i=>i.selected);
     if(sel.length===1){
       const dragged=sel[0];
@@ -834,7 +778,6 @@ function enableIconDragging(){
       }
     }
 
-    // snap to grid
     OS.state.desktopIcons.forEach(icon=>{
       icon.x=Math.round(icon.x/grid)*grid;
       icon.y=Math.round(icon.y/grid)*grid;
@@ -874,7 +817,9 @@ function showDesktopContextMenuForIcon(icon,index,x,y){
       }
       if(a==="rename"){
         const newName=prompt("Rename:",icon.name);
-        if(newName) icon.name=newName.trim()||icon.name;
+        if(newName && newName.trim()){
+          icon.name=newName.trim();
+        }
       }
       if(a==="pin"){
         togglePinStart(icon.appId);
@@ -890,7 +835,7 @@ function showDesktopContextMenuForIcon(icon,index,x,y){
   });
 }
 
-/* Window manager + resize */
+/* Window manager */
 function createWindow(appId,title,contentNode){
   const win=document.createElement("div");
   win.className="window glass-win hidden";
@@ -1020,12 +965,11 @@ function enableWindowResize(win,handle){
   });
 }
 
-/* Apps registry */
+/* App registry */
 function registerApp(id,def){OS.state.apps[id]=def;}
 function openApp(id){
   const app=OS.state.apps[id];
   if(!app){
-    console.warn("App not found:",id);
     showToast(`App "${id}" is not installed.`);
     return null;
   }
@@ -1040,7 +984,7 @@ function openApp(id){
   return win;
 }
 
-/* LP Browser (lp://) */
+/* Browser */
 registerApp("browser",{
   title:"Liquid Plastic Browser",
   createContent(){
@@ -1105,7 +1049,7 @@ function setupLPBrowser(root){
   navigate("lp://home");
 }
 
-/* Settings app */
+/* Settings */
 registerApp("settings",{
   title:"Settings",
   createContent(){
@@ -1319,38 +1263,44 @@ function renderGlassPanel(){
     <div class="settings-section">
       <div class="setting-group-title">Custom level</div>
       <input type="range" min="0" max="100" value="80" class="glass-slider" id="glassSlider">
-      <div style="font-size:11px;color:var(--text-sub);margin-top:4px;">Affects taskbar, start menu, context menus, app icons, notifications.</div>
+      <div style="font-size:11px;color:var(--text-sub);margin-top:4px;">
+        Affects taskbar, icons, start menu, folders, context menus, notifications.
+      </div>
     </div>
   `;
+
   function applyGlass(level){
-    const op=Math.max(0.1,level/100);
-    const iconOp=0.5+0.5*op;
-    const borderAlpha=0.3+0.4*op;
-    document.documentElement.style.setProperty("--glass-opacity",op.toString());
-    document.documentElement.style.setProperty("--glass-border-alpha",borderAlpha.toString());
-    document.documentElement.style.setProperty("--icon-glass-opacity",iconOp.toString());
+    const op = Math.max(0.1, level / 100);
+    const iconOp = 0.5 + 0.5 * op;
+    const borderAlpha = 0.3 + 0.4 * op;
+    document.documentElement.style.setProperty("--glass-opacity", op.toString());
+    document.documentElement.style.setProperty("--glass-border-alpha", borderAlpha.toString());
+    document.documentElement.style.setProperty("--icon-glass-opacity", iconOp.toString());
+    OS.config.glassLevel = op;
   }
-  const slider=$("#glassSlider");
-  slider.oninput=()=>{
-    const v=Number(slider.value);
-    OS.config.glassLevel=v/100;
+
+  const slider = $("#glassSlider");
+
+  slider.oninput = () => {
+    const v = Number(slider.value);
     applyGlass(v);
   };
+
   $$("#settings-panel-glass .settings-radio-btn[data-preset]").forEach(btn=>{
-    btn.onclick=()=>{
-      const preset=btn.dataset.preset;
-      let v=80;
-      if(preset==="glassy") v=100;
-      if(preset==="balanced") v=70;
-      if(preset==="solid") v=20;
-      slider.value=v;
-      OS.config.glassLevel=v/100;
+    btn.onclick = () => {
+      const preset = btn.dataset.preset;
+      let v = 80;
+      if (preset === "glassy")   v = 80;
+      if (preset === "balanced") v = 50;
+      if (preset === "solid")    v = 20;
+      slider.value = v;
       applyGlass(v);
       $$("#settings-panel-glass .settings-radio-btn[data-preset]").forEach(x=>x.classList.remove("active"));
       btn.classList.add("active");
     };
   });
-  slider.value=80;
+
+  slider.value = 80;
   applyGlass(80);
 }
 
@@ -1577,7 +1527,7 @@ function renderThisPCView(view,main){
   }
 }
 
-/* Store with install/uninstall */
+/* Store */
 registerApp("store",{
   title:"Store",
   createContent(){
@@ -1650,7 +1600,6 @@ function uninstallStoreApp(id){
     showToast(`App ${id} is not installed.`);
     return;
   }
-  // close any open windows of that app
   OS.state.windows.forEach(win=>{
     if(win.dataset.appId===id) win.remove();
   });
@@ -1658,11 +1607,8 @@ function uninstallStoreApp(id){
   if(OS.state.activeWindow && OS.state.activeWindow.dataset.appId===id){
     OS.state.activeWindow=null;
   }
-  // remove from registry
   delete OS.state.apps[id];
-  // unpin from start
   pinnedApps=pinnedApps.filter(a=>a!==id);
-  // remove desktop shortcuts pointing to that app
   OS.state.desktopIcons=OS.state.desktopIcons.filter(i=>i.appId!==id);
   renderDesktopIcons();
   renderTaskbar();
@@ -1748,8 +1694,9 @@ function renderTaskManagerContent(root){
 function renderTaskbar(){
   const bar=$("#taskbar");
   if(!bar) return;
-  bar.className="glass-ui";
   bar.innerHTML="";
+  bar.className="glass-ui";
+
   const left=document.createElement("div");
   left.className="task-left";
   left.innerHTML=`<button class="task-btn" id="btnStart">Start</button>`;
@@ -1876,7 +1823,7 @@ function toggleNotifPanel(force){
   }
 }
 
-/* Start menu + pinned apps + Task Manager button */
+/* Start menu + pinned apps */
 let pinnedApps=["thispc","browser","settings","notes","store","terminal","calculator","recycle-bin"];
 let currentDraggedAppId=null;
 
@@ -1935,9 +1882,7 @@ function renderStartMenuContent(){
       if(item) item.click();
     },10);
   };
-  $("#btnTaskMgr").onclick=()=>{
-    openApp("taskmgr");
-  };
+  $("#btnTaskMgr").onclick=()=>{ openApp("taskmgr"); };
   $("#startLock").onclick=()=>{
     minimizeAllWindows();
     toggleStartMenu(false);
@@ -2025,7 +1970,7 @@ document.addEventListener("mousedown",(e)=>{
 /* Taskbar / Start / app right-click */
 document.addEventListener("contextmenu",(e)=>{
   const iconEl=e.target.closest(".icon");
-  if(iconEl) return; // handled by icon context
+  if(iconEl) return;
 
   const tbBtn=e.target.closest(".tb-app");
   const tb=e.target.closest("#taskbar");
@@ -2089,7 +2034,7 @@ function initDesktop(){
   renderTaskbar();
 }
 
-/* Start boot when DOM ready */
+/* DOM ready */
 document.addEventListener("DOMContentLoaded", startBoot);
 </script>
 </body>
