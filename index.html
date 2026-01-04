@@ -417,13 +417,16 @@ body{
 
 /* Store */
 .store-app{font-size:12px}
-.store-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(120px,1fr));gap:8px;margin-top:8px;}
+.store-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:8px;margin-top:8px;}
 .store-card{
   border-radius:10px;padding:6px;border:1px solid rgba(55,65,81,.9);
-  background:rgba(15,23,42,.95);cursor:pointer;
+  background:rgba(15,23,42,.95);
 }
 .store-card-title{font-weight:600;font-size:12px;margin-bottom:2px;}
-.store-card-desc{font-size:11px;color:var(--text-sub);}
+.store-card-desc{font-size:11px;color:var(--text-sub);margin-bottom:4px;}
+.store-card-buttons{
+  display:flex;gap:6px;margin-top:4px;
+}
 
 /* Toast */
 #toast{
@@ -525,7 +528,7 @@ function notify(title,message){
   renderTaskbar();
 }
 
-/* BIOS boot (stable) */
+/* BIOS boot */
 function startBoot(){
   const bios = $("#bios");
   const bar  = $("#bios-bar-inner");
@@ -541,6 +544,7 @@ function startBoot(){
   function finishBoot() {
     if (finished) return;
     finished = true;
+    OS.state.bootDone = true;   // IMPORTANT: enables clock + notifications
     bios.style.transition = "opacity .3s";
     bios.style.opacity = "0";
     setTimeout(() => {
@@ -639,6 +643,7 @@ function renderDesktopIcons(){
 
     if(icon.selected) el.classList.add("selected");
 
+    // select on click (supports multi-select)
     el.addEventListener("mousedown",(e)=>{
       if(e.button!==0) return;
       e.stopPropagation();
@@ -650,11 +655,13 @@ function renderDesktopIcons(){
       renderDesktopIcons();
     });
 
+    // open on double-click (like Windows)
     el.addEventListener("dblclick",()=>{
       if(icon.type==="folder") openAppFolder(icon);
       else if(icon.appId) openApp(icon.appId);
     });
 
+    // context menu
     el.addEventListener("contextmenu",(e)=>{
       e.preventDefault();
       e.stopPropagation();
@@ -775,6 +782,7 @@ function enableIconDragging(){
     document.body.style.userSelect="";
     const grid=OS.config.desktopGrid;
 
+    // folder stacking
     const sel=OS.state.desktopIcons.filter(i=>i.selected);
     if(sel.length===1){
       const dragged=sel[0];
@@ -805,6 +813,7 @@ function enableIconDragging(){
       }
     }
 
+    // snap to grid
     OS.state.desktopIcons.forEach(icon=>{
       icon.x=Math.round(icon.x/grid)*grid;
       icon.y=Math.round(icon.y/grid)*grid;
@@ -821,7 +830,7 @@ function overlapRect(a,b){
   return a.left<b.right && a.right>b.left && a.top<b.bottom && a.bottom>b.top;
 }
 
-/* Desktop context menu (with delete → Recycle Bin) */
+/* Desktop context menu */
 function showDesktopContextMenuForIcon(icon,index,x,y){
   const menu=$("#ctxMenu");
   const inner=menu.querySelector(".inner");
@@ -1118,7 +1127,7 @@ function toggleNotifPanel(force){
 }
 
 /* Start menu + pinned apps + Task Manager button */
-let pinnedApps=["thispc","browser","settings","notes","store","terminal","recycle-bin"];
+let pinnedApps=["thispc","browser","settings","notes","store","terminal","calculator","recycle-bin"];
 let currentDraggedAppId=null;
 
 function renderStartMenuContent(){
@@ -1648,6 +1657,81 @@ registerApp("notes",{title:"Notes",createContent(){
   return root;
 }});
 
+/* Calculator (functional) */
+registerApp("calculator",{
+  title:"Calculator",
+  createContent(){
+    const root=document.createElement("div");
+    root.style.fontSize="12px";
+    root.innerHTML=`
+      <div style="border-radius:10px;border:1px solid rgba(55,65,81,.9);background:#020617;padding:6px;width:220px;">
+        <div id="calcDisplay" style="height:32px;border-radius:6px;background:#020617;color:#e5e7eb;border:1px solid rgba(55,65,81,.9);padding:4px 6px;text-align:right;font-size:14px;overflow:hidden;">0</div>
+        <div style="margin-top:6px;display:grid;grid-template-columns:repeat(4,1fr);gap:4px;">
+          <button data-key="7">7</button>
+          <button data-key="8">8</button>
+          <button data-key="9">9</button>
+          <button data-key="/">÷</button>
+          <button data-key="4">4</button>
+          <button data-key="5">5</button>
+          <button data-key="6">6</button>
+          <button data-key="*">×</button>
+          <button data-key="1">1</button>
+          <button data-key="2">2</button>
+          <button data-key="3">3</button>
+          <button data-key="-">−</button>
+          <button data-key="0">0</button>
+          <button data-key=".">.</button>
+          <button data-key="C">C</button>
+          <button data-key="+">+</button>
+          <button data-key="=" style="grid-column:span 4;">=</button>
+        </div>
+      </div>
+    `;
+    root.querySelectorAll("button").forEach(b=>{
+      b.style.borderRadius="6px";
+      b.style.border="1px solid rgba(55,65,81,.9)";
+      b.style.background="rgba(15,23,42,.95)";
+      b.style.color="var(--text-main)";
+      b.style.cursor="pointer";
+      b.style.padding="4px 0";
+    });
+    setupCalculator(root);
+    return root;
+  }
+});
+function setupCalculator(root){
+  const display=root.querySelector("#calcDisplay");
+  let expr="";
+
+  function updateDisplay(){
+    display.textContent = expr || "0";
+  }
+  function press(key){
+    if(key==="C"){
+      expr="";
+      updateDisplay();
+      return;
+    }
+    if(key==="="){
+      try{
+        const safe = expr.replace(/[^0-9+\-*/.()]/g,"");
+        const val = Function(`"use strict";return (${safe||"0"})`)();
+        expr = String(val);
+      }catch{
+        expr="Error";
+      }
+      updateDisplay();
+      return;
+    }
+    if(expr==="Error") expr="";
+    expr += key;
+    updateDisplay();
+  }
+  root.querySelectorAll("[data-key]").forEach(btn=>{
+    btn.onclick=()=>press(btn.dataset.key);
+  });
+}
+
 /* Recycle bin */
 registerApp("recycle-bin",{
   title:"Recycle Bin",
@@ -1787,7 +1871,7 @@ function renderThisPCView(view,main){
   }
 }
 
-/* Store with installable apps */
+/* Store with install/uninstall */
 registerApp("store",{
   title:"Store",
   createContent(){
@@ -1799,12 +1883,18 @@ registerApp("store",{
         <div class="store-card">
           <div class="store-card-title">Liquid Paint</div>
           <div class="store-card-desc">Simple drawing app for Liquid Plastic.</div>
-          <button class="theme-btn" data-install="paint">Install</button>
+          <div class="store-card-buttons">
+            <button class="theme-btn" data-install="paint">Install</button>
+            <button class="theme-btn" data-uninstall="paint">Uninstall</button>
+          </div>
         </div>
         <div class="store-card">
           <div class="store-card-title">LP Music</div>
           <div class="store-card-desc">Mock music player (concept).</div>
-          <button class="theme-btn" data-install="music">Install</button>
+          <div class="store-card-buttons">
+            <button class="theme-btn" data-install="music">Install</button>
+            <button class="theme-btn" data-uninstall="music">Uninstall</button>
+          </div>
         </div>
       </div>
     `;
@@ -1812,6 +1902,12 @@ registerApp("store",{
       btn.onclick=()=>{
         const id=btn.dataset.install;
         installStoreApp(id);
+      };
+    });
+    root.querySelectorAll("[data-uninstall]").forEach(btn=>{
+      btn.onclick=()=>{
+        const id=btn.dataset.uninstall;
+        uninstallStoreApp(id);
       };
     });
     return root;
@@ -1841,6 +1937,31 @@ function installStoreApp(id){
   if(!pinnedApps.includes(id)) pinnedApps.push(id);
   notify("Store",`Installed ${id} and added to Start.`);
   showToast(`Installed ${id}`);
+  if(OS.state.startMenuOpen) renderStartMenuContent();
+}
+function uninstallStoreApp(id){
+  if(!OS.state.apps[id]){
+    showToast(`App ${id} is not installed.`);
+    return;
+  }
+  // close any open windows of that app
+  OS.state.windows.forEach(win=>{
+    if(win.dataset.appId===id) win.remove();
+  });
+  OS.state.windows=OS.state.windows.filter(w=>w.dataset.appId!==id);
+  if(OS.state.activeWindow && OS.state.activeWindow.dataset.appId===id){
+    OS.state.activeWindow=null;
+  }
+  // remove from registry
+  delete OS.state.apps[id];
+  // unpin from start
+  pinnedApps=pinnedApps.filter(a=>a!==id);
+  // remove desktop shortcuts pointing to that app
+  OS.state.desktopIcons=OS.state.desktopIcons.filter(i=>i.appId!==id);
+  renderDesktopIcons();
+  renderTaskbar();
+  notify("Store",`Uninstalled ${id}.`);
+  showToast(`Uninstalled ${id}`);
   if(OS.state.startMenuOpen) renderStartMenuContent();
 }
 
